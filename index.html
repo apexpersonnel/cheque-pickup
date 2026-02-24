@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cheque Pickup — Apex Personnel (Multi-Office)</title>
+<script>
+// Offline-capable SheetJS loader
+(function(){
+  var CACHE_KEY = 'xlsx_lib_0185';
+  var CDN_URL = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  function loadFromCache(){try{return localStorage.getItem(CACHE_KEY)}catch(e){return null}}
+  function saveToCache(code){try{localStorage.setItem(CACHE_KEY,code)}catch(e){}}
+  function execCode(code){var s=document.createElement('script');s.textContent=code;document.head.appendChild(s)}
+  var cached=loadFromCache();
+  if(cached&&cached.length>10000){execCode(cached);fetch(CDN_URL).then(function(r){return r.text()}).then(saveToCache).catch(function(){});}
+  else{fetch(CDN_URL).then(function(r){if(!r.ok)throw new Error('Failed');return r.text()}).then(function(code){saveToCache(code);execCode(code)}).catch(function(){document.body.innerHTML='<div style="text-align:center;padding:60px 20px;font-family:system-ui;color:#EF4444;background:#0B1120;min-height:100vh;"><div style="font-size:48px;margin-bottom:20px;">⚠️</div><div style="font-size:20px;font-weight:700;margin-bottom:12px;">Internet Required for First Load</div><div style="color:#94A3B8;font-size:15px;">Connect to the internet and reload.<br>After first load, it works offline.</div></div>'});}
+})();
+</script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0B1120;--bg-header:linear-gradient(135deg,#0F172A,#1E293B);--bg-section:#111827;--bg-input:#0B1120;--bg-stat:#0B1120;
+    --border:#1F2937;--border-light:#334155;--border-header:#1E3A5F;
+    --text:#E2E8F0;--text-bright:#F8FAFC;--text-dim:#64748B;--text-muted:#475569;
+    --accent:#F59E0B;--accent-dark:#D97706;--accent-bg:rgba(245,158,11,0.08);--accent-border:rgba(245,158,11,0.2);--accent-bg2:rgba(245,158,11,0.12);
+    --green:#22C55E;--green-bg:rgba(34,197,94,0.05);--green-bg2:rgba(34,197,94,0.1);--green-border:rgba(34,197,94,0.2);--green-border2:rgba(34,197,94,0.3);
+    --blue:#60A5FA;--blue-bg:#1E3A5F;--blue-bg-hover:#1E4A7F;
+    --hover-bg:rgba(255,255,255,0.03);--dropzone-bg:rgba(30,41,59,0.5);--cb-border:#475569;--row-signed-opacity:0.45;
+  }
+  body.light{
+    --bg:#F1F5F9;--bg-header:linear-gradient(135deg,#FFFFFF,#F8FAFC);--bg-section:#FFFFFF;--bg-input:#F8FAFC;--bg-stat:#F1F5F9;
+    --border:#E2E8F0;--border-light:#CBD5E1;--border-header:#E2E8F0;
+    --text:#334155;--text-bright:#0F172A;--text-dim:#64748B;--text-muted:#94A3B8;
+    --accent:#D97706;--accent-dark:#B45309;--accent-bg:rgba(217,119,6,0.06);--accent-border:rgba(217,119,6,0.2);--accent-bg2:rgba(217,119,6,0.1);
+    --green:#16A34A;--green-bg:rgba(22,163,74,0.04);--green-bg2:rgba(22,163,74,0.08);--green-border:rgba(22,163,74,0.15);--green-border2:rgba(22,163,74,0.25);
+    --blue:#2563EB;--blue-bg:#DBEAFE;--blue-bg-hover:#BFDBFE;
+    --hover-bg:rgba(0,0,0,0.02);--dropzone-bg:rgba(241,245,249,0.8);--cb-border:#94A3B8;--row-signed-opacity:0.5;
+  }
+  body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;transition:background .3s,color .3s}
+  .header{background:var(--bg-header);border-bottom:1px solid var(--border-header);padding:16px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+  .header-left{display:flex;align-items:center;gap:14px}
+  .logo{width:38px;height:38px;background:linear-gradient(135deg,#F59E0B,#D97706);border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:#0B1120}
+  .header h1{font-size:18px;font-weight:700;color:var(--text-bright)}
+  .header .sub{font-size:12px;color:var(--text-dim)}
+  .status-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .file-tag{display:inline-flex;align-items:center;gap:6px;background:var(--accent-bg);border:1px solid var(--accent-border);color:var(--accent);padding:5px 10px;border-radius:8px;font-size:12px;font-weight:600;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .stat{background:var(--bg-stat);padding:5px 10px;border-radius:6px;font-size:12px;color:var(--text-muted)}
+  .stat b{color:var(--text-bright);font-weight:700}.stat b.green{color:var(--green)}
+  .hdr-btn{background:none;border:1px solid var(--border-light);color:var(--text-muted);padding:5px 12px;border-radius:8px;font-size:12px;cursor:pointer;font-weight:600;font-family:inherit;transition:all .2s}
+  .hdr-btn:hover{border-color:var(--text-dim);color:var(--text-bright)}
+  .main{max-width:920px;margin:0 auto;padding:20px}
+  .dropzone{border:2px dashed var(--border-light);border-radius:16px;padding:50px 28px;text-align:center;cursor:pointer;transition:all .2s;background:var(--dropzone-bg);margin-top:30px}
+  .dropzone.over{border-color:var(--accent);background:var(--accent-bg)}
+  .dropzone .icon{font-size:44px;margin-bottom:14px}.dropzone .text{font-size:17px;font-weight:600;color:var(--text-bright);margin-bottom:6px}.dropzone .subtext{font-size:13px;color:var(--text-dim)}
+
+  /* TABS */
+  .tabs{display:flex;gap:4px;overflow-x:auto;padding:4px 0;margin-bottom:16px;-webkit-overflow-scrolling:touch}
+  .tab{padding:10px 18px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;border:1px solid var(--border);background:var(--bg-section);color:var(--text-dim);transition:all .2s;flex-shrink:0}
+  .tab:hover{border-color:var(--text-dim);color:var(--text-bright)}
+  .tab.active{background:var(--accent);color:#0B1120;border-color:var(--accent)}
+  .tab .tab-count{font-size:10px;font-weight:600;margin-left:6px;opacity:.7}
+
+  .section{background:var(--bg-section);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px;transition:background .3s,border-color .3s}
+  .section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-dim);margin-bottom:10px}
+  .search-input,.collector-input{width:100%;padding:13px 15px;font-size:16px;background:var(--bg-input);border:1px solid var(--border-light);border-radius:10px;color:var(--text-bright);outline:none;font-family:inherit;transition:border-color .2s}
+  .search-input:focus,.collector-input:focus{border-color:var(--accent)}
+  .hint{font-size:12px;color:var(--text-muted);margin-top:7px}
+  .list-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .select-all-btn{background:none;border:1px solid var(--border-light);color:var(--text-muted);padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;font-family:inherit}
+  .select-all-btn:hover{border-color:var(--text-dim);color:var(--text-bright)}
+  .cheque-row{display:flex;align-items:center;padding:11px 12px;border-radius:8px;cursor:pointer;gap:10px;user-select:none;transition:background .15s}
+  .cheque-row:hover{background:var(--hover-bg)}.cheque-row.selected{background:var(--accent-bg)}
+  .cb{width:19px;height:19px;border-radius:5px;border:2px solid var(--cb-border);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+  .cheque-row.selected .cb{background:var(--accent);border-color:var(--accent)}
+  .cb-check{color:#0B1120;font-weight:800;font-size:13px;display:none}.cheque-row.selected .cb-check{display:block}
+  .chq-num{font-family:'IBM Plex Mono',monospace;font-weight:700;color:var(--accent);font-size:13px;min-width:65px}
+  .chq-name{font-weight:600;color:var(--text-bright);font-size:14px;flex:1}
+  .chq-client{color:var(--text-dim);font-size:12px}
+  .chq-pay{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;color:var(--green);white-space:nowrap}
+  .chq-office{font-size:10px;font-weight:700;color:var(--blue);background:var(--blue-bg);padding:2px 7px;border-radius:4px;white-space:nowrap}
+  .cheque-row.signed{opacity:var(--row-signed-opacity);cursor:default}.cheque-row.signed:hover{background:transparent}
+  .signed-badge{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--green);background:var(--green-bg2);border:1px solid var(--green-border);padding:3px 7px;border-radius:4px;white-space:nowrap;max-width:260px;overflow:hidden;text-overflow:ellipsis}
+  .empty-state{text-align:center;padding:28px 14px;color:var(--text-muted);font-size:13px}
+  .selected-bar{background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:12px;padding:14px 18px;margin-bottom:14px}
+  .selected-bar-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .selected-bar-title{font-size:12px;font-weight:700;color:var(--accent)}
+  .clear-all-btn{background:none;border:1px solid var(--accent-border);color:var(--accent);padding:3px 9px;border-radius:6px;font-size:10px;cursor:pointer;font-weight:600;font-family:inherit}
+  .clear-all-btn:hover{background:var(--accent-bg2)}
+  .selected-chip{display:inline-flex;align-items:center;gap:5px;background:var(--accent-bg2);border-radius:6px;padding:4px 9px;margin:2px 3px 2px 0;font-size:11px;color:var(--text)}
+  .selected-chip .chip-chq{font-family:'IBM Plex Mono',monospace;font-weight:700;color:var(--accent)}
+  .selected-chip .chip-office{font-size:9px;color:var(--text-dim)}
+  .selected-chip .chip-remove{cursor:pointer;color:var(--text-muted);font-size:13px;margin-left:2px;line-height:1}
+  .selected-chip .chip-remove:hover{color:#EF4444}
+  .history-item{padding:12px 14px;border-radius:8px;background:var(--green-bg);border:1px solid var(--green-border);margin-bottom:7px}
+  .history-item .hi-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+  .history-item .hi-collector{font-weight:700;color:var(--green);font-size:14px}
+  .history-item .hi-time{font-size:11px;color:var(--text-dim);font-family:'IBM Plex Mono',monospace}
+  .history-item .hi-cheques{font-size:12px;color:var(--text-muted)}
+  .history-item .hi-cheques span{font-family:'IBM Plex Mono',monospace;color:var(--accent);font-weight:600}
+  .export-btn{width:100%;padding:13px;font-size:14px;font-weight:700;background:var(--green-bg2);border:1px solid var(--green-border2);color:var(--green);border-radius:10px;cursor:pointer;font-family:inherit;margin-top:14px;transition:all .2s}
+  .export-btn:hover{background:var(--green-border)}
+  .cam-btn{padding:13px 22px;font-size:14px;font-weight:700;border:none;border-radius:10px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;font-family:inherit;transition:all .2s;background:var(--blue-bg);color:var(--blue)}
+  .cam-btn:hover{background:var(--blue-bg-hover)}
+  .snap-btn{background:linear-gradient(135deg,#F59E0B,#D97706);color:#0B1120;padding:14px 28px;font-size:15px;font-weight:800;border:none;border-radius:12px;cursor:pointer;width:100%;margin-top:10px;font-family:inherit}
+  .snap-btn:hover{filter:brightness(1.05)}
+  #video{width:100%;border-radius:10px;background:#000;display:block}
+  #photoPreview{width:100%;border-radius:10px;max-height:280px;object-fit:cover}
+  .retake-btn{background:none;border:1px solid var(--cb-border);color:var(--text-muted);padding:7px 14px;border-radius:8px;font-size:12px;cursor:pointer;font-weight:600;margin-top:7px;font-family:inherit}
+  .retake-btn:hover{border-color:var(--text-muted);color:var(--text-bright)}
+  .confirm-btn{width:100%;padding:16px;font-size:16px;font-weight:800;background:linear-gradient(135deg,#F59E0B,#D97706);color:#0B1120;border:none;border-radius:12px;cursor:pointer;letter-spacing:.5px;font-family:inherit;transition:all .2s;margin-top:8px}
+  .confirm-btn:hover{filter:brightness(1.05)}.confirm-btn:disabled{opacity:.4;cursor:not-allowed;filter:none}
+  .confirm-hint{text-align:center;font-size:11px;color:var(--text-muted);margin-top:7px;margin-bottom:20px}
+  .success-banner{background:var(--green-bg2);border:1px solid var(--green-border2);border-radius:12px;padding:18px;text-align:center;margin-bottom:14px;animation:fadeIn .3s ease}
+  .success-banner .icon{font-size:30px;margin-bottom:6px}.success-banner .msg{font-size:15px;font-weight:700;color:var(--green)}.success-banner .sub{font-size:12px;color:var(--text-dim);margin-top:3px}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-left">
+    <div class="logo">AP</div>
+    <div><h1>Cheque Pickup</h1><div class="sub">APEX PERSONNEL INC. — Multi-Office</div></div>
+  </div>
+  <div class="status-bar hidden" id="statusBar">
+    <span class="file-tag" id="fileTag">📄</span>
+    <span class="stat"><b id="remainCount">0</b> remaining</span>
+    <span class="stat"><b class="green" id="collectedCount">0</b> collected</span>
+    <button class="hdr-btn" id="loadNewBtn">📂 New File</button>
+  </div>
+  <button class="hdr-btn" id="themeToggle">☀️ Light</button>
+</div>
+<div class="main">
+  <div class="success-banner hidden" id="successBanner"><div class="icon">✅</div><div class="msg">Pickup confirmed — photo saved &amp; text copied</div><div class="sub">Paste into Signature column in Excel. Resetting...</div></div>
+
+  <!-- DROPZONE -->
+  <div id="dropzone" class="dropzone">
+    <div class="icon">📂</div>
+    <div class="text">Tap here to load your Payroll Excel file</div>
+    <div class="subtext">Supports multi-sheet .xlsx files — all offices loaded at once</div>
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,*/*" style="display:none">
+    <div style="margin-top:18px;"><button id="browseBtn" style="padding:13px 28px;font-size:15px;font-weight:700;background:linear-gradient(135deg,#F59E0B,#D97706);color:#0B1120;border:none;border-radius:12px;cursor:pointer;font-family:inherit;">📄 Browse Files</button></div>
+  </div>
+
+  <!-- FORM -->
+  <div id="formArea" class="hidden">
+    <!-- OFFICE TABS -->
+    <div class="tabs" id="officeTabs"></div>
+
+    <!-- SEARCH -->
+    <div class="section">
+      <div class="section-title">Step 1 — Search Worker</div>
+      <input class="search-input" type="text" id="searchInput" placeholder="Search by name, client, or cheque number..." autocomplete="off">
+    </div>
+
+    <!-- RESULTS -->
+    <div class="section hidden" id="resultsSection">
+      <div class="list-header">
+        <div class="section-title" id="resultCount">Matching Cheques (0)</div>
+        <button class="select-all-btn hidden" id="selectAllBtn">Select All</button>
+      </div>
+      <div id="chequeList"></div>
+    </div>
+
+    <!-- SELECTED BAR -->
+    <div class="selected-bar hidden" id="selectedBar">
+      <div class="selected-bar-header">
+        <span class="selected-bar-title" id="selectedBarTitle">0 selected</span>
+        <button class="clear-all-btn" id="clearAllBtn">Clear All</button>
+      </div>
+      <div id="selectedChips"></div>
+    </div>
+
+    <!-- ACTION AREA -->
+    <div id="actionArea" class="hidden">
+      <div class="section">
+        <div class="section-title">Step 2 — Who is collecting?</div>
+        <input class="collector-input" type="text" id="collectorInput" placeholder="Name of person picking up (e.g. Ahmed Khan)" autocomplete="off">
+        <div class="hint">This may differ from the names on the cheques.</div>
+      </div>
+      <div class="section">
+        <div class="section-title">Step 3 — Photo Proof</div>
+        <div id="cameraArea" style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="cam-btn" id="openCamBtn">📷 Open Camera</button>
+          <button class="cam-btn" id="uploadPhotoBtn">📁 Take / Upload Photo</button>
+          <input type="file" id="photoFileInput" accept="image/*" capture="environment" style="display:none">
+        </div>
+        <div class="hint" id="cameraHint">If camera button doesn't work, use "Take / Upload Photo" instead.</div>
+        <div id="videoArea" class="hidden"><video id="video" autoplay playsinline></video><button class="snap-btn" id="snapBtn">📸 SNAP PHOTO</button></div>
+        <div id="photoArea" class="hidden"><img id="photoPreview" src="" alt="Proof"><button class="retake-btn" id="retakeBtn">🔄 Retake</button></div>
+        <canvas id="canvas" style="display:none"></canvas>
+      </div>
+      <button class="confirm-btn" id="confirmBtn" disabled>✓ CONFIRM PICKUP</button>
+      <div class="confirm-hint">Saves stamped photo and copies log text to clipboard</div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="section hidden" id="historySection" style="margin-top:20px;">
+      <div class="list-header"><div class="section-title">✅ Collection History</div><span class="stat" id="historyCount" style="font-size:11px;"></span></div>
+      <div id="historyList"></div>
+      <button class="export-btn" id="exportBtn">📥 Export Updated Excel</button>
+      <div class="hint" style="margin-top:7px;">Downloads your original file with Signature columns filled in for all offices</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ---- STATE ----
+  let offices = {}; // { sheetName: { cheques:[], colMap:{}, headerRow:0 } }
+  let allCheques = []; // flat array of all cheques across offices
+  let selected = new Set();
+  let collectedSet = new Set();
+  let totalCollected = 0;
+  let photoDataUrl = null;
+  let stream = null;
+  let history = [];
+  let originalWorkbook = null;
+  let originalFileName = '';
+  let activeTab = 'ALL';
+
+  const SESSION_KEY = 'cheque_pickup_multi_session';
+
+  function saveSession(){try{localStorage.setItem(SESSION_KEY,JSON.stringify({history,collectedIds:Array.from(collectedSet),totalCollected,savedAt:new Date().toISOString(),fileName:originalFileName}))}catch(e){}}
+  function loadSessionData(){try{var r=localStorage.getItem(SESSION_KEY);return r?JSON.parse(r):null}catch(e){return null}}
+  function clearSession(){try{localStorage.removeItem(SESSION_KEY)}catch(e){}}
+  function restoreSession(saved){history=saved.history||[];collectedSet=new Set(saved.collectedIds||[]);totalCollected=saved.totalCollected||0;renderHistory();updateCounts();}
+
+  // ---- DOM ----
+  const $=id=>document.getElementById(id);
+  const dropzone=$('dropzone'),fileInput=$('fileInput'),formArea=$('formArea'),statusBar=$('statusBar'),fileTag=$('fileTag');
+  const remainCount=$('remainCount'),collectedCountEl=$('collectedCount'),searchInput=$('searchInput');
+  const resultsSection=$('resultsSection'),resultCount=$('resultCount'),selectAllBtn=$('selectAllBtn'),chequeList=$('chequeList');
+  const actionArea=$('actionArea'),collectorInput=$('collectorInput');
+  const openCamBtn=$('openCamBtn'),cameraArea=$('cameraArea'),videoArea=$('videoArea'),photoArea=$('photoArea');
+  const video=$('video'),snapBtn=$('snapBtn'),photoPreview=$('photoPreview'),retakeBtn=$('retakeBtn'),canvas=$('canvas');
+  const confirmBtn=$('confirmBtn'),successBanner=$('successBanner');
+  const selectedBar=$('selectedBar'),selectedBarTitle=$('selectedBarTitle'),selectedChips=$('selectedChips'),clearAllBtn=$('clearAllBtn');
+  const historySection=$('historySection'),historyList=$('historyList'),historyCountEl=$('historyCount'),exportBtn=$('exportBtn');
+  const officeTabs=$('officeTabs');
+
+  // ---- COLUMN DETECTION ----
+  function detectColumns(rows){
+    // Find header row by looking for row with many cells including 'Last Name'
+    for(let r=0;r<Math.min(rows.length,10);r++){
+      const row=rows[r];
+      if(!row)continue;
+      let found=false;
+      for(let c=0;c<row.length;c++){
+        if(row[c]&&String(row[c]).toLowerCase().replace(/\s+/g,' ').trim()==='last name'){found=true;break;}
+      }
+      if(found){
+        const map={};
+        for(let c=0;c<row.length;c++){
+          const v=row[c];
+          if(!v)continue;
+          const name=String(v).toLowerCase().replace(/[\n\r]+/g,' ').replace(/\s+/g,' ').trim();
+          if(name==='last name')map.lastName=c;
+          else if(name==='first name')map.firstName=c;
+          else if(name.includes('client'))map.client=c;
+          else if(name==='mode')map.mode=c;
+          else if(name.includes('chq no')||name.includes('chq. no'))map.chqNo=c;
+          else if(name==='net pay'||name==='net_pay'||name==='netpay')map.netPay=c;
+          else if(name==='signature')map.signature=c;
+        }
+        // Some sheets label net pay differently
+        if(map.netPay===undefined){
+          for(let c=0;c<row.length;c++){
+            const v=row[c];if(!v)continue;
+            const name=String(v).toLowerCase().replace(/[\n\r]+/g,' ').replace(/\s+/g,' ').trim();
+            if(name.includes('net')&&name.includes('pay'))map.netPay=c;
+          }
+        }
+        if(map.lastName!==undefined&&map.chqNo!==undefined&&map.signature!==undefined){
+          return{headerRow:r,colMap:map};
+        }
+      }
+    }
+    return null;
+  }
+
+  // ---- PARSE EXCEL ----
+  function parseExcel(file){
+    if(typeof XLSX==='undefined'){alert('Still loading Excel library. Wait a moment and try again.');return;}
+    const reader=new FileReader();
+    reader.onload=function(e){
+      const data=new Uint8Array(e.target.result);
+      const wb=XLSX.read(data,{type:'array'});
+      originalWorkbook=wb;
+      originalFileName=file.name;
+      offices={};
+      allCheques=[];
+      let globalId=0;
+
+      wb.SheetNames.forEach(sheetName=>{
+        const ws=wb.Sheets[sheetName];
+        const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+        const detected=detectColumns(rows);
+        if(!detected)return; // skip sheets we can't parse
+
+        const{headerRow,colMap}=detected;
+        const sheetCheques=[];
+
+        for(let i=headerRow+1;i<rows.length;i++){
+          const row=rows[i];
+          if(!row||row.length===0)continue;
+
+          const mode=String(row[colMap.mode]||'').trim().toUpperCase();
+          const chqNo=String(row[colMap.chqNo]||'').trim();
+          const lastName=String(row[colMap.lastName]||'').trim();
+          const firstName=String(row[colMap.firstName]||'').trim();
+          const client=colMap.client!==undefined?String(row[colMap.client]||'').trim():'';
+          const netPay=parseFloat(row[colMap.netPay])||0;
+          const signature=String(row[colMap.signature]||'').trim();
+
+          if(mode==='CHQ'&&(lastName||firstName)&&chqNo&&netPay>0){
+            const cheque={
+              uid:'s'+wb.SheetNames.indexOf(sheetName)+'r'+i+'_'+(globalId++),
+              sheetName,
+              rowIndex:i,
+              sigCol:colMap.signature,
+              lastName,firstName,
+              fullName:lastName+' '+firstName,
+              client,chqNo,netPay,
+              hasSignature:signature.length>0,
+              signatureText:signature
+            };
+            sheetCheques.push(cheque);
+            allCheques.push(cheque);
+          }
+        }
+        offices[sheetName]={cheques:sheetCheques,colMap,headerRow};
+      });
+
+      // Show UI
+      dropzone.classList.add('hidden');
+      formArea.classList.remove('hidden');
+      statusBar.classList.remove('hidden');
+      fileTag.textContent='📄 '+file.name;
+      buildTabs();
+      updateCounts();
+
+      // Session recovery
+      const saved=loadSessionData();
+      if(saved&&saved.history&&saved.history.length>0){
+        const chequeCount=saved.history.reduce((s,h)=>s+h.cheques.length,0);
+        const t=new Date(saved.savedAt);
+        const ts=t.toLocaleDateString('en-CA')+' '+t.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+        if(confirm('Found saved session from '+ts+'\n'+chequeCount+' cheque(s) collected.\n\nOK to resume, Cancel to start fresh.')){
+          restoreSession(saved);
+        }else{clearSession();}
+      }
+      searchInput.focus();
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  // ---- TABS ----
+  function buildTabs(){
+    officeTabs.innerHTML='';
+    const sheetNames=Object.keys(offices);
+    if(sheetNames.length<=1){activeTab=sheetNames[0]||'ALL';return;}
+
+    // ALL tab
+    const allTab=document.createElement('div');
+    allTab.className='tab'+(activeTab==='ALL'?' active':'');
+    const allCount=allCheques.filter(c=>!c.hasSignature&&!collectedSet.has(c.uid)).length;
+    allTab.innerHTML='All Offices<span class="tab-count">('+allCount+')</span>';
+    allTab.addEventListener('click',()=>{activeTab='ALL';buildTabs();renderList();});
+    officeTabs.appendChild(allTab);
+
+    sheetNames.forEach(name=>{
+      const tab=document.createElement('div');
+      tab.className='tab'+(activeTab===name?' active':'');
+      const count=offices[name].cheques.filter(c=>!c.hasSignature&&!collectedSet.has(c.uid)).length;
+      tab.innerHTML=name+'<span class="tab-count">('+count+')</span>';
+      tab.addEventListener('click',()=>{activeTab=name;buildTabs();renderList();});
+      officeTabs.appendChild(tab);
+    });
+  }
+
+  // ---- SEARCH & RENDER ----
+  function getPool(){
+    if(activeTab==='ALL')return allCheques;
+    return offices[activeTab]?offices[activeTab].cheques:[];
+  }
+
+  function getFiltered(){
+    const q=searchInput.value.trim().toLowerCase();
+    if(!q)return[];
+    return getPool().filter(c=>
+      !collectedSet.has(c.uid)&&
+      (c.lastName.toLowerCase().includes(q)||
+       c.firstName.toLowerCase().includes(q)||
+       c.fullName.toLowerCase().includes(q)||
+       c.client.toLowerCase().includes(q)||
+       c.chqNo.toLowerCase().includes(q))
+    ).sort((a,b)=>{
+      if(a.hasSignature!==b.hasSignature)return a.hasSignature?1:-1;
+      return(parseInt(a.chqNo)||0)-(parseInt(b.chqNo)||0);
+    });
+  }
+
+  function getSelectedSorted(){
+    return allCheques.filter(c=>selected.has(c.uid)).sort((a,b)=>(parseInt(a.chqNo)||0)-(parseInt(b.chqNo)||0));
+  }
+
+  function renderList(){
+    const filtered=getFiltered();
+    const q=searchInput.value.trim();
+    if(!q){resultsSection.classList.add('hidden');renderSelectedBar();return;}
+
+    resultsSection.classList.remove('hidden');
+    const unsignedCount=filtered.filter(c=>!c.hasSignature).length;
+    const signedCount=filtered.filter(c=>c.hasSignature).length;
+    let ct='Matching Cheques ('+filtered.length+')';
+    if(signedCount>0)ct+=' · '+signedCount+' already collected';
+    resultCount.textContent=ct;
+
+    if(unsignedCount>1){
+      selectAllBtn.classList.remove('hidden');
+      selectAllBtn.textContent=filtered.filter(c=>!c.hasSignature).every(c=>selected.has(c.uid))?'Deselect All':'Select All';
+    }else{selectAllBtn.classList.add('hidden');}
+
+    if(filtered.length===0){
+      chequeList.innerHTML='<div class="empty-state">No uncollected cheques match "'+q+'"</div>';
+      renderSelectedBar();return;
+    }
+
+    chequeList.innerHTML='';
+    const showOffice=activeTab==='ALL'&&Object.keys(offices).length>1;
+    filtered.forEach(c=>{
+      const row=document.createElement('div');
+      if(c.hasSignature){
+        row.className='cheque-row signed';
+        let collectedBy='',collectedAt='';
+        if(c.signatureText.indexOf('Collected by')===0){
+          const parts=c.signatureText.split(' \u2014 ');
+          if(parts[0])collectedBy=parts[0].replace('Collected by ','');
+          if(parts[1])collectedAt=parts[1];
+        }else{collectedBy=c.signatureText;}
+        row.innerHTML='<div class="cb" style="border-color:var(--border-light)"></div>'
+          +'<span class="chq-num" style="color:var(--text-dim)">'+c.chqNo+'</span>'
+          +'<span class="chq-name" style="color:var(--text-dim)">'+c.lastName+' '+c.firstName+'</span>'
+          +(showOffice?'<span class="chq-office">'+c.sheetName+'</span>':'')
+          +'<span class="signed-badge">✅ '+(collectedBy||'Collected')+(collectedAt?' · '+collectedAt:'')+'</span>';
+      }else{
+        row.className='cheque-row'+(selected.has(c.uid)?' selected':'');
+        row.innerHTML='<div class="cb"><span class="cb-check">✓</span></div>'
+          +'<span class="chq-num">'+c.chqNo+'</span>'
+          +'<span class="chq-name">'+c.lastName+' '+c.firstName+'</span>'
+          +(showOffice?'<span class="chq-office">'+c.sheetName+'</span>':'')
+          +'<span class="chq-pay">$'+c.netPay.toFixed(2)+'</span>'
+          +'<span class="chq-client">'+c.client+'</span>';
+        row.addEventListener('click',()=>toggleSelect(c.uid));
+      }
+      chequeList.appendChild(row);
+    });
+    renderSelectedBar();
+    updateConfirmBtn();
+  }
+
+  function toggleSelect(uid){
+    if(selected.has(uid))selected.delete(uid);else selected.add(uid);
+    renderList();
+  }
+
+  selectAllBtn.addEventListener('click',()=>{
+    const filtered=getFiltered().filter(c=>!c.hasSignature);
+    const allSel=filtered.every(c=>selected.has(c.uid));
+    filtered.forEach(c=>{if(allSel)selected.delete(c.uid);else selected.add(c.uid);});
+    renderList();
+  });
+
+  function renderSelectedBar(){
+    const sel=getSelectedSorted();
+    if(sel.length===0){selectedBar.classList.add('hidden');actionArea.classList.add('hidden');return;}
+    selectedBar.classList.remove('hidden');actionArea.classList.remove('hidden');
+    selectedBarTitle.textContent=sel.length+' cheque'+(sel.length!==1?'s':'')+' selected — $'+sel.reduce((s,c)=>s+c.netPay,0).toFixed(2)+' total';
+    selectedChips.innerHTML='';
+    sel.forEach(c=>{
+      const chip=document.createElement('span');chip.className='selected-chip';
+      chip.innerHTML='<span class="chip-chq">'+c.chqNo+'</span><span>'+c.lastName+' '+c.firstName+'</span><span style="color:var(--green);font-family:IBM Plex Mono,monospace;font-size:10px;font-weight:600;">$'+c.netPay.toFixed(2)+'</span>'
+        +(Object.keys(offices).length>1?'<span class="chip-office">'+c.sheetName+'</span>':'')
+        +'<span class="chip-remove" data-uid="'+c.uid+'">✕</span>';
+      selectedChips.appendChild(chip);
+    });
+    selectedChips.querySelectorAll('.chip-remove').forEach(btn=>{
+      btn.addEventListener('click',e=>{e.stopPropagation();selected.delete(btn.getAttribute('data-uid'));renderSelectedBar();renderList();});
+    });
+    updateConfirmBtn();
+  }
+
+  clearAllBtn.addEventListener('click',()=>{selected.clear();renderSelectedBar();renderList();});
+  searchInput.addEventListener('input',renderList);
+  collectorInput.addEventListener('input',updateConfirmBtn);
+
+  function updateConfirmBtn(){
+    const ready=collectorInput.value.trim()&&selected.size>0&&photoDataUrl;
+    confirmBtn.disabled=!ready;
+    confirmBtn.textContent='✓ CONFIRM PICKUP'+(selected.size>0?' — '+selected.size+' cheque'+(selected.size!==1?'s':''):'');
+  }
+
+  function updateCounts(){
+    const remaining=allCheques.filter(c=>!collectedSet.has(c.uid)&&!c.hasSignature).length;
+    remainCount.textContent=remaining;
+    collectedCountEl.textContent=totalCollected;
+    buildTabs();
+  }
+
+  // ---- FILE HANDLING ----
+  dropzone.addEventListener('click',()=>fileInput.click());
+  $('browseBtn').addEventListener('click',e=>{e.stopPropagation();fileInput.click();});
+  $('loadNewBtn').addEventListener('click',()=>{
+    if(history.length>0&&!confirm('You have '+history.length+' unsaved pickup(s).\n\nCancel to export first. OK to discard.'))return;
+    offices={};allCheques=[];selected.clear();collectedSet=new Set();totalCollected=0;photoDataUrl=null;history=[];originalWorkbook=null;originalFileName='';clearSession();
+    formArea.classList.add('hidden');statusBar.classList.add('hidden');dropzone.classList.remove('hidden');
+    resultsSection.classList.add('hidden');actionArea.classList.add('hidden');selectedBar.classList.add('hidden');historySection.classList.add('hidden');successBanner.classList.add('hidden');
+    searchInput.value='';collectorInput.value='';photoPreview.src='';photoArea.classList.add('hidden');cameraArea.style.display='flex';$('cameraHint').classList.remove('hidden');
+    fileInput.click();
+  });
+  dropzone.addEventListener('dragover',e=>{e.preventDefault();dropzone.classList.add('over');});
+  dropzone.addEventListener('dragleave',()=>dropzone.classList.remove('over'));
+  dropzone.addEventListener('drop',e=>{e.preventDefault();dropzone.classList.remove('over');if(e.dataTransfer.files[0])parseExcel(e.dataTransfer.files[0]);});
+  fileInput.addEventListener('change',e=>{if(e.target.files[0])parseExcel(e.target.files[0]);});
+
+  // ---- CAMERA ----
+  async function startCamera(){
+    try{
+      stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}}});
+      video.srcObject=stream;cameraArea.style.display='none';$('cameraHint').classList.add('hidden');videoArea.classList.remove('hidden');photoArea.classList.add('hidden');
+    }catch(err){alert('Camera access denied.');}
+  }
+  function stopCamera(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}videoArea.classList.add('hidden');}
+  function snapPhoto(){
+    canvas.width=video.videoWidth;canvas.height=video.videoHeight;
+    canvas.getContext('2d').drawImage(video,0,0);
+    photoDataUrl=canvas.toDataURL('image/jpeg',0.92);
+    photoPreview.src=photoDataUrl;stopCamera();photoArea.classList.remove('hidden');cameraArea.style.display='none';updateConfirmBtn();
+  }
+  openCamBtn.addEventListener('click',startCamera);
+  snapBtn.addEventListener('click',snapPhoto);
+
+  const uploadPhotoBtn=$('uploadPhotoBtn'),photoFileInput=$('photoFileInput');
+  uploadPhotoBtn.addEventListener('click',()=>photoFileInput.click());
+  photoFileInput.addEventListener('change',e=>{
+    const file=e.target.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=ev=>{photoDataUrl=ev.target.result;photoPreview.src=photoDataUrl;stopCamera();cameraArea.style.display='none';$('cameraHint').classList.add('hidden');photoArea.classList.remove('hidden');updateConfirmBtn();};
+    reader.readAsDataURL(file);photoFileInput.value='';
+  });
+  retakeBtn.addEventListener('click',()=>{photoDataUrl=null;photoArea.classList.add('hidden');cameraArea.style.display='flex';$('cameraHint').classList.remove('hidden');updateConfirmBtn();});
+
+  // ---- HISTORY ----
+  function renderHistory(){
+    if(history.length===0){historySection.classList.add('hidden');return;}
+    historySection.classList.remove('hidden');
+    historyCountEl.innerHTML='<b>'+history.length+'</b> pickup'+(history.length!==1?'s':'')+' today';
+    historyList.innerHTML='';
+    history.forEach(h=>{
+      const div=document.createElement('div');div.className='history-item';
+      const tags=h.cheques.map(c=>'<span>'+c.chqNo+'</span> '+c.name+' ('+c.sheetName+')').join(' &nbsp;·&nbsp; ');
+      div.innerHTML='<div class="hi-top"><span class="hi-collector">Collected by '+h.collector+'</span><span class="hi-time">'+h.timestamp+'</span></div><div class="hi-cheques">'+tags+'</div>';
+      historyList.appendChild(div);
+    });
+  }
+
+  // ---- EXPORT ----
+  exportBtn.addEventListener('click',()=>{
+    if(history.length===0)return;
+    if(!originalWorkbook)return alert('No workbook loaded.');
+    const uncollected=allCheques.filter(c=>!collectedSet.has(c.uid)&&!c.hasSignature).length;
+    const collected=history.reduce((s,h)=>s+h.cheques.length,0);
+    let msg='Ready to export?\n\n✅ '+collected+' cheque(s) collected this session\n';
+    msg+=uncollected>0?'⏳ '+uncollected+' still uncollected\n':'🎉 All collected!\n';
+    msg+='\nOK to download updated Excel.';
+    if(!confirm(msg))return;
+
+    history.forEach(h=>{
+      h.cheques.forEach(c=>{
+        const ws=originalWorkbook.Sheets[c.sheetName];
+        if(!ws)return;
+        const sigText='Collected by '+h.collector+' \u2014 '+h.timestamp+' \u2014 File: '+h.filename;
+        const addr=XLSX.utils.encode_cell({r:c.rowIndex,c:c.sigCol});
+        ws[addr]={t:'s',v:sigText};
+        const range=XLSX.utils.decode_range(ws['!ref']);
+        if(range.e.c<c.sigCol)range.e.c=c.sigCol;
+        ws['!ref']=XLSX.utils.encode_range(range);
+      });
+    });
+
+    const wbOut=XLSX.write(originalWorkbook,{bookType:'xlsx',type:'array'});
+    const blob=new Blob([wbOut],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;
+    a.download=originalFileName.replace(/\.xlsx$/i,'')+'_SIGNED_'+new Date().toLocaleDateString('en-CA')+'.xlsx';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+    clearSession();
+  });
+
+  // ---- SOUND ----
+  function playConfirmSound(){
+    try{
+      const ctx=new(window.AudioContext||window.webkitAudioContext)();
+      const o1=ctx.createOscillator(),g1=ctx.createGain();o1.type='sine';o1.frequency.value=660;
+      g1.gain.setValueAtTime(.3,ctx.currentTime);g1.gain.exponentialRampToValueAtTime(.01,ctx.currentTime+.3);
+      o1.connect(g1);g1.connect(ctx.destination);o1.start(ctx.currentTime);o1.stop(ctx.currentTime+.3);
+      const o2=ctx.createOscillator(),g2=ctx.createGain();o2.type='sine';o2.frequency.value=880;
+      g2.gain.setValueAtTime(.3,ctx.currentTime+.15);g2.gain.exponentialRampToValueAtTime(.01,ctx.currentTime+.5);
+      o2.connect(g2);g2.connect(ctx.destination);o2.start(ctx.currentTime+.15);o2.stop(ctx.currentTime+.5);
+      setTimeout(()=>ctx.close(),600);
+    }catch(e){}
+  }
+
+  // ---- CONFIRM ----
+  confirmBtn.addEventListener('click',()=>{
+    const collectorName=collectorInput.value.trim();
+    if(!collectorName)return alert("Enter the collector's name.");
+    if(selected.size===0)return alert('Select at least one cheque.');
+    if(!photoDataUrl)return alert('Take a photo first.');
+
+    const now=new Date();
+    const date=now.toLocaleDateString('en-CA');
+    const timeFile=now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}).replace(':','-');
+    const timeDisplay=now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    const full=date+' '+timeDisplay;
+    const selectedCheques=getSelectedSorted();
+    const chqNums=selectedCheques.map(c=>c.chqNo).join('_');
+    const chqListText=selectedCheques.map(c=>'CHQ-'+c.chqNo).join(', ');
+    const collectorClean=collectorName.replace(/\s+/g,'_');
+    const filename=collectorClean+'_'+chqNums+'_'+date+'_'+timeFile+'.jpg';
+
+    // Stamp photo
+    const img=new Image();
+    img.onload=function(){
+      const c=document.createElement('canvas');c.width=img.width;c.height=img.height;
+      const ctx=c.getContext('2d');ctx.drawImage(img,0,0);
+      const barH=Math.max(img.height*.13,120);ctx.fillStyle='rgba(0,0,0,0.75)';ctx.fillRect(0,img.height-barH,img.width,barH);
+      const fs=Math.max(Math.floor(img.width/40),16);const pad=fs*.8;const lh=fs*1.4;const sy=img.height-barH+pad+fs;
+      ctx.fillStyle='#FFFFFF';ctx.font='bold '+fs+'px Arial,sans-serif';ctx.fillText('APEX PERSONNEL INC.',pad,sy);
+      ctx.font=fs+'px Arial,sans-serif';ctx.fillText('Collected by: '+collectorName,pad,sy+lh);
+      const chqText='Cheques: '+chqListText;
+      if(ctx.measureText(chqText).width>img.width-pad*2)ctx.font=Math.floor(fs*.85)+'px Arial,sans-serif';
+      ctx.fillText(chqText,pad,sy+lh*2);
+      ctx.fillStyle='#FFD580';ctx.font=fs+'px Arial,sans-serif';ctx.fillText('Date: '+full,pad,sy+lh*3);
+      c.toBlob(function(blob){
+        const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=filename;
+        document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+      },'image/jpeg',.92);
+    };
+    img.src=photoDataUrl;
+
+    // Clipboard
+    const clipText='Collected by '+collectorName+' — '+full+' — '+chqListText+' — File: '+filename;
+    navigator.clipboard.writeText(clipText).catch(()=>{const ta=document.createElement('textarea');ta.value=clipText;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);});
+
+    // Mark collected
+    selected.forEach(uid=>collectedSet.add(uid));
+    totalCollected+=selected.size;
+
+    // History
+    history.unshift({
+      collector:collectorName,
+      cheques:selectedCheques.map(c=>({uid:c.uid,chqNo:c.chqNo,name:c.lastName+' '+c.firstName,client:c.client,sheetName:c.sheetName,rowIndex:c.rowIndex,sigCol:c.sigCol})),
+      timestamp:full,
+      filename:filename
+    });
+    renderHistory();
+
+    successBanner.classList.remove('hidden');
+    playConfirmSound();
+    saveSession();
+
+    setTimeout(()=>{
+      selected.clear();collectorInput.value='';photoDataUrl=null;photoPreview.src='';
+      photoArea.classList.add('hidden');cameraArea.style.display='flex';$('cameraHint').classList.remove('hidden');
+      searchInput.value='';successBanner.classList.add('hidden');resultsSection.classList.add('hidden');
+      actionArea.classList.add('hidden');selectedBar.classList.add('hidden');
+      updateCounts();searchInput.focus();
+    },3000);
+    updateCounts();
+  });
+
+  // ---- THEME ----
+  const themeToggle=$('themeToggle');
+  function setTheme(m){if(m==='light'){document.body.classList.add('light');themeToggle.textContent='🌙 Dark';localStorage.setItem('cheque-theme','light');}else{document.body.classList.remove('light');themeToggle.textContent='☀️ Light';localStorage.setItem('cheque-theme','dark');}}
+  try{if(localStorage.getItem('cheque-theme')==='light')setTheme('light');}catch(e){}
+  themeToggle.addEventListener('click',()=>setTheme(document.body.classList.contains('light')?'dark':'light'));
+
+  // Cleanup
+  window.addEventListener('beforeunload',()=>{if(stream)stream.getTracks().forEach(t=>t.stop());});
+})();
+</script>
+</body>
+</html>
