@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Cheque Pickup — Apex Personnel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f0eb;--surface:#fff;--text:#1a1a1a;--text-dim:#888;--accent:#e8622a;--accent-light:#fff3ed;
+  --border:#e5e0db;--border-light:#f0ebe6;--green:#1a8a3f;--blue:#2563eb;--blue-bg:#eff6ff;
+  --red:#dc2626;--red-bg:#fef2f2;--yellow:#ca8a04;--yellow-bg:#fefce8;
+  --shadow:0 1px 3px rgba(0,0,0,.08);--radius:10px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100dvh;overflow-x:hidden}
+.hidden{display:none!important}
+
+/* OFFLINE BAR */
+.offline-bar{position:fixed;top:0;left:0;right:0;z-index:1000;background:var(--yellow);color:#000;text-align:center;padding:6px;font-size:12px;font-weight:600;display:none}
+.offline-bar.show{display:block}
+.sync-badge{background:var(--yellow-bg);color:var(--yellow);font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:6px}
+
+/* HEADER */
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.header-left{display:flex;align-items:center;gap:10px}
+.logo{width:38px;height:38px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:18px}
+.header h1{font-size:17px;font-weight:700;letter-spacing:-.3px}
+.header .sub{font-size:10px;color:var(--text-dim);font-weight:600;letter-spacing:.5px}
+.header-actions{display:flex;gap:8px;align-items:center}
+.btn-icon{width:36px;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px}
+.btn-icon:active{background:var(--bg)}
+
+/* PIN SCREEN */
+.pin-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100dvh;padding:24px;background:var(--bg)}
+.pin-box{background:var(--surface);border-radius:16px;padding:40px 32px;box-shadow:var(--shadow);text-align:center;max-width:340px;width:100%}
+.pin-logo{width:64px;height:64px;background:var(--accent);border-radius:16px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:28px;margin:0 auto 16px}
+.pin-box h2{font-size:20px;margin-bottom:4px}
+.pin-box .sub{font-size:13px;color:var(--text-dim);margin-bottom:24px}
+.pin-input{display:flex;gap:10px;justify-content:center;margin-bottom:20px}
+.pin-digit{width:52px;height:58px;border:2px solid var(--border);border-radius:10px;text-align:center;font-size:24px;font-weight:700;font-family:'IBM Plex Mono',monospace;background:var(--surface);outline:none;transition:.2s}
+.pin-digit:focus{border-color:var(--accent)}
+.pin-digit.error{border-color:var(--red);animation:shake .4s}
+.pin-error{color:var(--red);font-size:13px;min-height:20px;margin-bottom:12px}
+.pin-btn{width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer}
+.pin-btn:disabled{opacity:.4}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+/* FILTER BAR */
+.filter-bar{padding:10px 12px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.filter-select{padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text);min-width:0;flex-shrink:0}
+.search-wrap{flex:1;min-width:160px;position:relative}
+.search-wrap input{width:100%;padding:9px 12px 9px 34px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif;background:var(--bg);outline:none}
+.search-wrap input:focus{border-color:var(--accent);background:var(--surface)}
+.search-wrap::before{content:'🔍';position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:14px}
+.search-loading{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;display:none}
+.search-loading.show{display:block}
+@keyframes spin{to{transform:translateY(-50%) rotate(360deg)}}
+
+/* RESULTS */
+.results-section{padding:0 12px}
+.result-header{display:flex;justify-content:space-between;align-items:center;padding:10px 4px}
+.result-count{font-size:13px;color:var(--text-dim);font-weight:500}
+.btn-select-all{font-size:12px;font-weight:600;color:var(--accent);background:none;border:none;cursor:pointer;padding:4px 8px}
+.cheque-list{display:flex;flex-direction:column;gap:4px}
+.cheque-row{display:flex;align-items:center;gap:8px;padding:10px;background:var(--surface);border:1px solid var(--border-light);border-radius:8px;cursor:pointer;transition:.15s;flex-wrap:wrap}
+.cheque-row:active{background:var(--accent-light)}
+.cheque-row.selected{background:var(--accent-light);border-color:var(--accent)}
+.cheque-row.signed{opacity:.5;cursor:default}
+.cheque-row.signed:active{background:var(--surface)}
+.cb{width:22px;height:22px;border:2px solid var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.cb-check{display:none;color:var(--accent);font-weight:700;font-size:14px}
+.cheque-row.selected .cb{border-color:var(--accent);background:var(--accent-light)}
+.cheque-row.selected .cb-check{display:block}
+.chq-num{font-family:'IBM Plex Mono',monospace;font-weight:700;color:var(--accent);font-size:13px;min-width:60px}
+.chq-name{font-weight:600;font-size:14px;flex:1;min-width:100px}
+.chq-pay{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;color:var(--green);white-space:nowrap}
+.chq-client{color:var(--text-dim);font-size:12px}
+.chq-week{font-size:10px;font-weight:700;color:var(--accent);background:var(--accent-light);padding:2px 7px;border-radius:4px;white-space:nowrap}
+.chq-office{font-size:10px;font-weight:700;color:var(--blue);background:var(--blue-bg);padding:2px 7px;border-radius:4px;white-space:nowrap}
+.signed-badge{font-size:11px;color:var(--green);font-weight:500;width:100%;padding-left:30px}
+.empty-state{text-align:center;padding:24px;color:var(--text-dim);font-size:14px}
+
+/* SELECTED BAR */
+.selected-bar{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin:12px;padding:12px}
+.selected-title{font-size:14px;font-weight:600;margin-bottom:8px}
+.selected-chips{display:flex;flex-wrap:wrap;gap:6px}
+.selected-chip{display:flex;align-items:center;gap:6px;background:var(--accent-light);border:1px solid var(--accent);border-radius:6px;padding:4px 8px;font-size:12px;font-weight:500}
+.chip-chq{font-family:'IBM Plex Mono',monospace;font-weight:700;color:var(--accent)}
+.chip-remove{cursor:pointer;color:var(--text-dim);font-weight:700;padding:0 2px}
+
+/* ACTION AREA */
+.action-area{padding:0 12px 12px}
+.action-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+.action-card h3{font-size:14px;margin-bottom:10px}
+.input-row{margin-bottom:12px}
+.input-row label{font-size:12px;font-weight:600;color:var(--text-dim);display:block;margin-bottom:4px}
+.input-row input{width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif}
+.photo-area{display:flex;gap:8px;margin-bottom:12px}
+.btn-camera,.btn-upload{flex:1;padding:12px;border:1px dashed var(--border);border-radius:8px;background:var(--bg);cursor:pointer;text-align:center;font-size:13px;font-family:'DM Sans',sans-serif;font-weight:500}
+.btn-camera:active,.btn-upload:active{background:var(--accent-light)}
+.photo-preview{margin-bottom:12px;display:none}
+.photo-preview img{width:100%;border-radius:8px;max-height:200px;object-fit:cover}
+.btn-confirm{width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;transition:.2s}
+.btn-confirm:disabled{opacity:.4;cursor:default}
+.btn-confirm.processing{background:var(--text-dim)}
+.hint{font-size:11px;color:var(--text-dim);text-align:center;margin-top:6px}
+
+/* HISTORY */
+.history-section{padding:12px;margin-top:8px}
+.history-section h3{font-size:14px;margin-bottom:8px}
+.history-item{background:var(--surface);border:1px solid var(--border-light);border-radius:8px;padding:10px;margin-bottom:6px;font-size:13px}
+.hi-top{display:flex;justify-content:space-between;margin-bottom:4px}
+.hi-collector{font-weight:600}
+.hi-time{color:var(--text-dim);font-size:12px}
+.hi-cheques{color:var(--text-dim);font-size:12px}
+.hi-cheques span{color:var(--accent);font-family:'IBM Plex Mono',monospace;font-weight:600}
+.hi-offline{color:var(--yellow);font-size:11px;font-weight:600;margin-top:4px}
+
+/* ADMIN MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--surface);border-radius:16px;max-width:420px;width:100%;padding:24px;max-height:80vh;overflow-y:auto}
+.modal h3{font-size:18px;margin-bottom:4px}
+.modal .sub{font-size:13px;color:var(--text-dim);margin-bottom:16px}
+.upload-zone{border:2px dashed var(--border);border-radius:10px;padding:32px 16px;text-align:center;cursor:pointer;margin-bottom:16px;transition:.2s}
+.upload-zone:active{border-color:var(--accent);background:var(--accent-light)}
+.upload-zone .icon{font-size:32px;margin-bottom:8px}
+.upload-zone .text{font-size:14px;font-weight:500}
+.upload-preview{margin-bottom:16px}
+.upload-preview .up-week{font-size:16px;font-weight:700;color:var(--accent);margin-bottom:6px}
+.upload-preview .up-offices{font-size:13px;color:var(--text-dim)}
+.upload-preview .up-count{font-size:13px;margin-top:4px}
+.btn-modal{padding:12px 20px;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif}
+.btn-modal-primary{background:var(--accent);color:#fff}
+.btn-modal-secondary{background:var(--bg);color:var(--text);margin-right:8px}
+.btn-modal:disabled{opacity:.4}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px}
+.upload-progress{margin-bottom:12px;font-size:13px;color:var(--text-dim)}
+.upload-error{color:var(--red);font-size:13px;margin-bottom:12px}
+.upload-success{color:var(--green);font-size:13px;margin-bottom:12px}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;font-weight:500;z-index:300;opacity:0;transition:.3s;pointer-events:none}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<!-- OFFLINE BAR -->
+<div class="offline-bar" id="offlineBar">⚡ You're offline — pickups will sync when connection returns <span class="sync-badge" id="syncBadge">0 queued</span></div>
+
+<!-- PIN SCREEN -->
+<div id="pinScreen" class="pin-screen">
+  <div class="pin-box">
+    <div class="pin-logo">AP</div>
+    <h2>Cheque Pickup</h2>
+    <div class="sub">APEX PERSONNEL INC.</div>
+    <div class="pin-input">
+      <input class="pin-digit" type="tel" maxlength="1" inputmode="numeric" autofocus>
+      <input class="pin-digit" type="tel" maxlength="1" inputmode="numeric">
+      <input class="pin-digit" type="tel" maxlength="1" inputmode="numeric">
+      <input class="pin-digit" type="tel" maxlength="1" inputmode="numeric">
+    </div>
+    <div class="pin-error" id="pinError"></div>
+    <button class="pin-btn" id="pinBtn" disabled>Unlock</button>
+  </div>
+</div>
+
+<!-- MAIN SCREEN -->
+<div id="mainScreen" class="hidden">
+  <div class="header">
+    <div class="header-left">
+      <div class="logo">AP</div>
+      <div><h1>Cheque Pickup</h1><div class="sub">APEX PERSONNEL INC.</div></div>
+    </div>
+    <div class="header-actions">
+      <button class="btn-icon" id="adminBtn" title="Upload Payroll">📤</button>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <select class="filter-select" id="weekFilter"><option value="ALL">All Weeks</option></select>
+    <select class="filter-select" id="officeFilter"><option value="ALL">All Offices</option></select>
+    <div class="search-wrap">
+      <input type="text" id="searchInput" placeholder="Search name, client, or cheque #..." autocomplete="off">
+      <div class="search-loading" id="searchLoading"></div>
+    </div>
+  </div>
+
+  <div class="results-section hidden" id="resultsSection">
+    <div class="result-header">
+      <span class="result-count" id="resultCount"></span>
+      <button class="btn-select-all hidden" id="selectAllBtn">Select All</button>
+    </div>
+    <div class="cheque-list" id="chequeList"></div>
+  </div>
+
+  <div class="selected-bar hidden" id="selectedBar">
+    <div class="selected-title" id="selectedTitle"></div>
+    <div class="selected-chips" id="selectedChips"></div>
+  </div>
+
+  <div class="action-area hidden" id="actionArea">
+    <div class="action-card">
+      <h3>Confirm Pickup</h3>
+      <div class="input-row">
+        <label>Collector's Name</label>
+        <input type="text" id="collectorInput" placeholder="Who is collecting?">
+      </div>
+      <div class="photo-area">
+        <button class="btn-camera" id="cameraBtn">📷 Camera</button>
+        <button class="btn-upload" id="uploadBtn">📁 Upload</button>
+      </div>
+      <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
+      <input type="file" id="uploadInput" accept="image/*" class="hidden">
+      <div class="photo-preview" id="photoPreview"><img id="photoImg"></div>
+      <button class="btn-confirm" id="confirmBtn" disabled>Confirm Pickup</button>
+      <div class="hint">Updates signature in Google Sheets & saves photo to Drive</div>
+    </div>
+  </div>
+
+  <div class="history-section hidden" id="historySection">
+    <h3>📋 This Session</h3>
+    <div id="historyList"></div>
+  </div>
+</div>
+
+<!-- ADMIN UPLOAD MODAL -->
+<div class="modal-overlay hidden" id="adminModal">
+  <div class="modal">
+    <h3>Upload Payroll File</h3>
+    <div class="sub">Select a payroll Excel file to import into the system</div>
+    <div class="upload-zone" id="uploadZone">
+      <div class="icon">📄</div>
+      <div class="text">Tap to select .xlsx file</div>
+    </div>
+    <input type="file" id="payrollFileInput" accept=".xlsx,.xls" class="hidden">
+    <div class="upload-preview hidden" id="uploadPreview">
+      <div class="up-week" id="upWeek"></div>
+      <div class="up-offices" id="upOffices"></div>
+      <div class="up-count" id="upCount"></div>
+    </div>
+    <div class="upload-progress hidden" id="uploadProgress">Uploading...</div>
+    <div class="upload-error hidden" id="uploadError"></div>
+    <div class="upload-success hidden" id="uploadSuccess"></div>
+    <div class="modal-actions">
+      <button class="btn-modal btn-modal-secondary" id="modalCloseBtn">Cancel</button>
+      <button class="btn-modal btn-modal-primary hidden" id="modalUploadBtn" disabled>Upload</button>
+    </div>
+  </div>
+</div>
+
+<!-- WEBCAM MODAL -->
+<div class="modal-overlay hidden" id="webcamModal">
+  <div class="modal" style="max-width:500px">
+    <h3>📷 Take Photo</h3>
+    <div style="margin:12px 0;border-radius:10px;overflow:hidden;background:#000;position:relative">
+      <video id="webcamVideo" autoplay playsinline style="width:100%;display:block;max-height:50vh"></video>
+    </div>
+    <div id="webcamError" class="upload-error hidden"></div>
+    <div style="display:flex;gap:8px;justify-content:center">
+      <button class="btn-modal btn-modal-secondary" id="webcamCloseBtn">Cancel</button>
+      <button class="btn-modal btn-modal-primary" id="webcamSnapBtn">📸 Capture</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- CANVAS FOR PHOTO STAMPING (hidden) -->
+<canvas id="stampCanvas" class="hidden"></canvas>
+
+<script>
+// =============================================
+// CONFIGURATION — Set your Apps Script URL here
+// =============================================
+const API_URL = 'https://script.google.com/macros/s/AKfycby1YGRjS5Qhb5wgZmPS0T036uMWkXM-KuW-tIZBG4JmN4vbQqIc2X1EdJ10TLzzQNaaQg/exec';
+
+// =============================================
+// STATE
+// =============================================
+let pin = '';
+let weeksData = {};       // { WE0214: ['Cambridge', 'Douglas', ...], ... }
+let searchResults = [];
+let selected = new Set();  // UIDs
+let photoDataUrl = null;
+let history = [];
+let offlineQueue = [];
+let isOnline = navigator.onLine;
+let searchTimeout = null;
+let currentSearchId = 0;
+
+// =============================================
+// ELEMENTS
+// =============================================
+const $ = id => document.getElementById(id);
+const pinScreen = $('pinScreen');
+const mainScreen = $('mainScreen');
+const pinDigits = document.querySelectorAll('.pin-digit');
+const pinError = $('pinError');
+const pinBtn = $('pinBtn');
+const offlineBar = $('offlineBar');
+const syncBadge = $('syncBadge');
+const weekFilter = $('weekFilter');
+const officeFilter = $('officeFilter');
+const searchInput = $('searchInput');
+const searchLoading = $('searchLoading');
+const resultsSection = $('resultsSection');
+const resultCount = $('resultCount');
+const selectAllBtn = $('selectAllBtn');
+const chequeList = $('chequeList');
+const selectedBar = $('selectedBar');
+const selectedTitle = $('selectedTitle');
+const selectedChips = $('selectedChips');
+const actionArea = $('actionArea');
+const collectorInput = $('collectorInput');
+const confirmBtn = $('confirmBtn');
+const photoPreview = $('photoPreview');
+const photoImg = $('photoImg');
+const historySection = $('historySection');
+const historyList = $('historyList');
+const toast = $('toast');
+
+// =============================================
+// OFFLINE DETECTION
+// =============================================
+window.addEventListener('online', () => { isOnline = true; updateOfflineBar(); syncOfflineQueue(); });
+window.addEventListener('offline', () => { isOnline = false; updateOfflineBar(); });
+
+function updateOfflineBar() {
+  offlineBar.classList.toggle('show', !isOnline || offlineQueue.length > 0);
+  if (isOnline && offlineQueue.length > 0) {
+    offlineBar.textContent = '🔄 Syncing ' + offlineQueue.length + ' queued pickup(s)...';
+  } else if (!isOnline) {
+    offlineBar.innerHTML = '⚡ You\'re offline — pickups will sync when connection returns <span class="sync-badge">' + offlineQueue.length + ' queued</span>';
+  } else {
+    offlineBar.classList.remove('show');
+  }
+}
+
+// =============================================
+// API CALLS
+// =============================================
+async function api(payload) {
+  if (!payload.pin) payload.pin = pin;
+  try {
+    const resp = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+      redirect: 'follow'
+    });
+    const text = await resp.text();
+    try { return JSON.parse(text); }
+    catch (e) {
+      console.error('API response not JSON:', text.substring(0, 500));
+      throw new Error('Invalid response from server');
+    }
+  } catch (err) {
+    console.error('API call failed:', err);
+    throw err;
+  }
+}
+
+// =============================================
+// PIN LOGIN
+// =============================================
+pinDigits.forEach((d, i) => {
+  d.addEventListener('input', () => {
+    d.value = d.value.replace(/\D/g, '');
+    if (d.value && i < 3) pinDigits[i + 1].focus();
+    updatePinBtn();
+  });
+  d.addEventListener('keydown', (e) => {
+    if (e.key === 'Backspace' && !d.value && i > 0) { pinDigits[i - 1].focus(); pinDigits[i - 1].value = ''; }
+    if (e.key === 'Enter') pinBtn.click();
+  });
+});
+
+function updatePinBtn() {
+  const code = Array.from(pinDigits).map(d => d.value).join('');
+  pinBtn.disabled = code.length !== 4;
+}
+
+pinBtn.addEventListener('click', async () => {
+  const code = Array.from(pinDigits).map(d => d.value).join('');
+  pinBtn.disabled = true;
+  pinBtn.textContent = 'Verifying...';
+  pinError.textContent = '';
+
+  try {
+    const res = await api({ action: 'verifyPin', pin: code });
+    console.log('PIN response:', JSON.stringify(res));
+    if (res.ok) {
+      pin = code;
+      localStorage.setItem('cheque_pin', code);
+      pinScreen.classList.add('hidden');
+      mainScreen.classList.remove('hidden');
+      await loadWeeks();
+      loadOfflineQueue();
+      loadSessionHistory();
+      if (offlineQueue.length > 0) syncOfflineQueue();
+    } else {
+      pinError.textContent = res.error || 'Incorrect PIN';
+      pinDigits.forEach(d => { d.classList.add('error'); d.value = ''; });
+      pinDigits[0].focus();
+      setTimeout(() => pinDigits.forEach(d => d.classList.remove('error')), 500);
+    }
+  } catch (err) {
+    console.error('PIN verify error:', err);
+    pinError.textContent = 'Connection error: ' + err.message;
+  }
+  pinBtn.disabled = false;
+  pinBtn.textContent = 'Unlock';
+});
+
+// Auto-login if PIN cached
+(function() {
+  const cached = localStorage.getItem('cheque_pin');
+  if (cached) {
+    const digits = cached.split('');
+    pinDigits.forEach((d, i) => { d.value = digits[i] || ''; });
+    updatePinBtn();
+  }
+})();
+
+// =============================================
+// LOAD WEEKS & OFFICES
+// =============================================
+async function loadWeeks() {
+  try {
+    const res = await api({ action: 'getWeeks' });
+    weeksData = res.weeks || {};
+
+    weekFilter.innerHTML = '<option value="ALL">All Weeks</option>';
+    Object.keys(weeksData).forEach(w => {
+      weekFilter.innerHTML += '<option value="' + w + '">' + w + '</option>';
+    });
+
+    updateOfficeFilter();
+  } catch (err) {
+    showToast('Could not load weeks — check connection');
+  }
+}
+
+function updateOfficeFilter() {
+  const w = weekFilter.value;
+  let offices = new Set();
+  if (w === 'ALL') {
+    Object.values(weeksData).forEach(arr => arr.forEach(o => offices.add(o)));
+  } else if (weeksData[w]) {
+    weeksData[w].forEach(o => offices.add(o));
+  }
+
+  officeFilter.innerHTML = '<option value="ALL">All Offices</option>';
+  Array.from(offices).sort().forEach(o => {
+    officeFilter.innerHTML += '<option value="' + o + '">' + o + '</option>';
+  });
+}
+
+weekFilter.addEventListener('change', () => { updateOfficeFilter(); doSearch(); });
+officeFilter.addEventListener('change', doSearch);
+
+// =============================================
+// SEARCH
+// =============================================
+searchInput.addEventListener('input', () => {
+  clearTimeout(searchTimeout);
+  const q = searchInput.value.trim();
+  if (q.length < 2) {
+    resultsSection.classList.add('hidden');
+    searchResults = [];
+    renderSelectedBar();
+    return;
+  }
+  searchTimeout = setTimeout(doSearch, 350);
+});
+
+async function doSearch() {
+  const q = searchInput.value.trim();
+  if (q.length < 2) { resultsSection.classList.add('hidden'); return; }
+
+  const thisSearchId = ++currentSearchId;
+  searchLoading.classList.add('show');
+
+  try {
+    const res = await api({
+      action: 'search',
+      query: q,
+      week: weekFilter.value,
+      office: officeFilter.value
+    });
+
+    if (thisSearchId !== currentSearchId) return; // stale
+    searchResults = res.results || [];
+    renderResults();
+  } catch (err) {
+    if (thisSearchId !== currentSearchId) return;
+    chequeList.innerHTML = '<div class="empty-state">Search failed — check connection</div>';
+    resultsSection.classList.remove('hidden');
+  }
+  searchLoading.classList.remove('show');
+}
+
+// =============================================
+// RENDER RESULTS
+// =============================================
+function renderResults() {
+  const q = searchInput.value.trim();
+  if (!q) { resultsSection.classList.add('hidden'); return; }
+  resultsSection.classList.remove('hidden');
+
+  const uncollected = searchResults.filter(c => !c.hasSignature);
+  const collected = searchResults.filter(c => c.hasSignature);
+
+  let ct = 'Matching Cheques (' + searchResults.length + ')';
+  if (collected.length > 0) ct += ' · ' + collected.length + ' already collected';
+  resultCount.textContent = ct;
+
+  if (uncollected.length > 1) {
+    selectAllBtn.classList.remove('hidden');
+    selectAllBtn.textContent = uncollected.every(c => selected.has(c.uid)) ? 'Deselect All' : 'Select All';
+  } else { selectAllBtn.classList.add('hidden'); }
+
+  if (searchResults.length === 0) {
+    chequeList.innerHTML = '<div class="empty-state">No cheques match "' + q + '"</div>';
+    renderSelectedBar(); return;
+  }
+
+  chequeList.innerHTML = '';
+  const showWeek = weekFilter.value === 'ALL';
+  const showOffice = officeFilter.value === 'ALL';
+
+  searchResults.forEach(c => {
+    const row = document.createElement('div');
+    if (c.hasSignature) {
+      row.className = 'cheque-row signed';
+      let collectedBy = '', collectedAt = '';
+      if (c.signatureText.indexOf('Collected by') === 0) {
+        const parts = c.signatureText.split(' \u2014 ');
+        if (parts[0]) collectedBy = parts[0].replace('Collected by ', '');
+        if (parts[1]) collectedAt = parts[1];
+      } else { collectedBy = c.signatureText; }
+      row.innerHTML = '<div class="cb" style="border-color:var(--border-light)"></div>'
+        + '<span class="chq-num" style="color:var(--text-dim)">' + c.chqNo + '</span>'
+        + '<span class="chq-name" style="color:var(--text-dim)">' + c.lastName + ' ' + c.firstName + '</span>'
+        + (showWeek ? '<span class="chq-week">' + c.week + '</span>' : '')
+        + (showOffice ? '<span class="chq-office">' + c.office + '</span>' : '')
+        + '<span class="signed-badge">✅ ' + (collectedBy || 'Collected') + (collectedAt ? ' · ' + collectedAt : '') + '</span>';
+    } else {
+      row.className = 'cheque-row' + (selected.has(c.uid) ? ' selected' : '');
+      row.innerHTML = '<div class="cb"><span class="cb-check">✓</span></div>'
+        + '<span class="chq-num">' + c.chqNo + '</span>'
+        + '<span class="chq-name">' + c.lastName + ' ' + c.firstName + '</span>'
+        + '<span class="chq-pay">$' + c.netPay.toFixed(2) + '</span>'
+        + (showWeek ? '<span class="chq-week">' + c.week + '</span>' : '')
+        + (showOffice ? '<span class="chq-office">' + c.office + '</span>' : '')
+        + '<span class="chq-client">' + c.client + '</span>';
+      row.addEventListener('click', () => toggleSelect(c.uid));
+    }
+    chequeList.appendChild(row);
+  });
+
+  renderSelectedBar();
+  updateConfirmBtn();
+}
+
+// =============================================
+// SELECTION
+// =============================================
+function toggleSelect(uid) {
+  if (selected.has(uid)) selected.delete(uid); else selected.add(uid);
+  renderResults();
+}
+
+selectAllBtn.addEventListener('click', () => {
+  const uncollected = searchResults.filter(c => !c.hasSignature);
+  const allSel = uncollected.every(c => selected.has(c.uid));
+  uncollected.forEach(c => { if (allSel) selected.delete(c.uid); else selected.add(c.uid); });
+  renderResults();
+});
+
+function getSelectedCheques() {
+  // Get from current results + any previously selected
+  const allUids = new Set(selected);
+  return searchResults.filter(c => allUids.has(c.uid));
+}
+
+function renderSelectedBar() {
+  const sel = getSelectedCheques();
+  if (sel.length === 0) {
+    selectedBar.classList.add('hidden');
+    actionArea.classList.add('hidden');
+    return;
+  }
+  selectedBar.classList.remove('hidden');
+  actionArea.classList.remove('hidden');
+
+  const total = sel.reduce((s, c) => s + c.netPay, 0);
+  selectedTitle.textContent = sel.length + ' cheque' + (sel.length !== 1 ? 's' : '') + ' selected — $' + total.toFixed(2) + ' total';
+
+  selectedChips.innerHTML = '';
+  sel.forEach(c => {
+    const chip = document.createElement('span');
+    chip.className = 'selected-chip';
+    chip.innerHTML = '<span class="chip-chq">' + c.chqNo + '</span>'
+      + '<span>' + c.lastName + ' ' + c.firstName + '</span>'
+      + '<span style="color:var(--green);font-family:IBM Plex Mono,monospace;font-size:10px;font-weight:600">$' + c.netPay.toFixed(2) + '</span>'
+      + '<span class="chip-remove" data-uid="' + c.uid + '">✕</span>';
+    selectedChips.appendChild(chip);
+  });
+
+  selectedChips.querySelectorAll('.chip-remove').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selected.delete(btn.dataset.uid);
+      renderResults();
+    });
+  });
+
+  updateConfirmBtn();
+}
+
+// =============================================
+// PHOTO CAPTURE
+// =============================================
+const cameraInput = $('cameraInput');
+const uploadInput = $('uploadInput');
+const webcamModal = $('webcamModal');
+const webcamVideo = $('webcamVideo');
+const webcamError = $('webcamError');
+let webcamStream = null;
+
+function isMobile() {
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+}
+
+$('cameraBtn').addEventListener('click', () => {
+  if (isMobile()) {
+    cameraInput.click();
+  } else {
+    openWebcam();
+  }
+});
+
+$('uploadBtn').addEventListener('click', () => uploadInput.click());
+
+cameraInput.addEventListener('change', handlePhoto);
+uploadInput.addEventListener('change', handlePhoto);
+
+async function openWebcam() {
+  webcamModal.classList.remove('hidden');
+  webcamError.classList.add('hidden');
+  try {
+    webcamStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false
+    });
+    webcamVideo.srcObject = webcamStream;
+  } catch (err) {
+    webcamError.textContent = 'Could not access camera: ' + err.message;
+    webcamError.classList.remove('hidden');
+  }
+}
+
+function closeWebcam() {
+  if (webcamStream) {
+    webcamStream.getTracks().forEach(t => t.stop());
+    webcamStream = null;
+  }
+  webcamVideo.srcObject = null;
+  webcamModal.classList.add('hidden');
+}
+
+$('webcamCloseBtn').addEventListener('click', closeWebcam);
+webcamModal.addEventListener('click', (e) => { if (e.target === webcamModal) closeWebcam(); });
+
+$('webcamSnapBtn').addEventListener('click', () => {
+  if (!webcamStream) return;
+  const canvas = document.createElement('canvas');
+  canvas.width = webcamVideo.videoWidth;
+  canvas.height = webcamVideo.videoHeight;
+  canvas.getContext('2d').drawImage(webcamVideo, 0, 0);
+  photoDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+  photoImg.src = photoDataUrl;
+  photoPreview.style.display = 'block';
+  updateConfirmBtn();
+  closeWebcam();
+});
+
+function handlePhoto(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    photoDataUrl = ev.target.result;
+    photoImg.src = photoDataUrl;
+    photoPreview.style.display = 'block';
+    updateConfirmBtn();
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+}
+
+// =============================================
+// CONFIRM PICKUP
+// =============================================
+function updateConfirmBtn() {
+  const sel = getSelectedCheques();
+  const hasCollector = collectorInput.value.trim().length > 0;
+  const hasPhoto = !!photoDataUrl;
+  confirmBtn.disabled = sel.length === 0 || !hasCollector || !hasPhoto;
+}
+
+collectorInput.addEventListener('input', updateConfirmBtn);
+
+confirmBtn.addEventListener('click', async () => {
+  const sel = getSelectedCheques();
+  if (sel.length === 0) return;
+
+  const collector = collectorInput.value.trim();
+  if (!collector) { showToast('Enter collector name'); return; }
+  if (!photoDataUrl) { showToast('Take a photo first'); return; }
+
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = 'Processing...';
+  confirmBtn.classList.add('processing');
+
+  const now = new Date();
+  const date = now.toLocaleDateString('en-CA');
+  const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const timestamp = date + ' ' + time;
+
+  // Determine week ending from selected cheques
+  const weekEnding = sel[0].week || 'Unknown';
+
+  // Stamp the photo
+  const stampedBase64 = await stampPhoto(photoDataUrl, collector, sel, timestamp);
+
+  // Build filename
+  const chqNums = sel.map(c => c.chqNo).join('_');
+  const collectorClean = collector.replace(/[^a-zA-Z0-9]/g, '_');
+  const timeFile = time.replace(':', '-');
+  const filename = weekEnding + '_' + collectorClean + '_' + chqNums + '_' + date + '_' + timeFile + '.jpg';
+
+  const pickupData = {
+    action: 'confirmPickup',
+    collector: collector,
+    timestamp: timestamp,
+    weekEnding: weekEnding,
+    photoFilename: filename,
+    photoBase64: stampedBase64.split(',')[1], // Remove data:image/jpeg;base64, prefix
+    cheques: sel.map(c => ({
+      uid: c.uid,
+      sheetName: c.sheetName,
+      rowIndex: c.rowIndex,
+      sigCol: c.sigCol,
+      chqNo: c.chqNo,
+      name: c.lastName + ' ' + c.firstName,
+      week: c.week,
+      office: c.office
+    }))
+  };
+
+  if (isOnline) {
+    try {
+      const res = await api(pickupData);
+      if (res.results) {
+        const failed = res.results.filter(r => r.error);
+        if (failed.length > 0) {
+          showToast('⚠️ ' + failed.length + ' cheque(s) already collected');
+        }
+        const succeeded = res.results.filter(r => r.ok);
+        if (succeeded.length > 0) {
+          playConfirmSound();
+          showToast('✅ ' + succeeded.length + ' cheque(s) confirmed' + (res.photoUrl ? ' · Photo saved' : ''));
+        }
+      }
+      addToHistory(collector, timestamp, sel, false);
+    } catch (err) {
+      // Network failed — queue offline
+      queueOffline(pickupData, collector, timestamp, sel);
+      showToast('⚡ Queued offline — will sync when connected');
+    }
+  } else {
+    queueOffline(pickupData, collector, timestamp, sel);
+    showToast('⚡ Queued offline — will sync when connected');
+  }
+
+  // Reset
+  selected.clear();
+  photoDataUrl = null;
+  photoPreview.style.display = 'none';
+  collectorInput.value = '';
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = 'Confirm Pickup';
+  confirmBtn.classList.remove('processing');
+  searchInput.value = '';
+  resultsSection.classList.add('hidden');
+  selectedBar.classList.add('hidden');
+  actionArea.classList.add('hidden');
+  searchResults = [];
+});
+
+// =============================================
+// PHOTO STAMPING
+// =============================================
+function stampPhoto(dataUrl, collector, cheques, timestamp) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = $('stampCanvas');
+      const maxW = 1200;
+      let w = img.width, h = img.height;
+      if (w > maxW) { h = h * maxW / w; w = maxW; }
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+
+      // Stamp overlay
+      const pad = 12;
+      const fs = Math.max(14, w * 0.025);
+      const lh = fs * 1.5;
+      const chqText = cheques.map(c => c.chqNo + ' ' + c.lastName + ' ' + c.firstName).join(' | ');
+      const lines = ['Collected by: ' + collector, timestamp, chqText];
+      const boxH = lines.length * lh + pad * 2;
+      const sy = h - boxH;
+
+      ctx.fillStyle = 'rgba(0,0,0,0.65)';
+      ctx.fillRect(0, sy, w, boxH);
+      ctx.fillStyle = '#fff';
+      ctx.font = fs + 'px Arial,sans-serif';
+      lines.forEach((line, i) => {
+        ctx.fillText(line, pad, sy + pad + (i + 1) * lh - 4);
+      });
+
+      resolve(canvas.toDataURL('image/jpeg', 0.85));
+    };
+    img.src = dataUrl;
+  });
+}
+
+// =============================================
+// SOUND
+// =============================================
+function playConfirmSound() {
+  try {
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    [660, 880].forEach((f, i) => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.15, ac.currentTime + i * 0.12);
+      g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + i * 0.12 + 0.3);
+      o.connect(g); g.connect(ac.destination);
+      o.start(ac.currentTime + i * 0.12);
+      o.stop(ac.currentTime + i * 0.12 + 0.3);
+    });
+  } catch (e) {}
+}
+
+// =============================================
+// HISTORY
+// =============================================
+function addToHistory(collector, timestamp, cheques, offline) {
+  const entry = {
+    collector: collector,
+    timestamp: timestamp,
+    cheques: cheques.map(c => ({ chqNo: c.chqNo, name: c.lastName + ' ' + c.firstName, week: c.week, office: c.office })),
+    offline: offline
+  };
+  history.unshift(entry);
+  saveSessionHistory();
+  renderHistory();
+}
+
+function renderHistory() {
+  if (history.length === 0) { historySection.classList.add('hidden'); return; }
+  historySection.classList.remove('hidden');
+  historyList.innerHTML = '';
+  history.forEach(h => {
+    const div = document.createElement('div');
+    div.className = 'history-item';
+    const tags = h.cheques.map(c => '<span>' + c.chqNo + '</span> ' + c.name + ' (' + c.week + ')').join(' · ');
+    div.innerHTML = '<div class="hi-top"><span class="hi-collector">Collected by ' + h.collector + '</span><span class="hi-time">' + h.timestamp + '</span></div>'
+      + '<div class="hi-cheques">' + tags + '</div>'
+      + (h.offline ? '<div class="hi-offline">⚡ Queued offline</div>' : '');
+    historyList.appendChild(div);
+  });
+}
+
+function saveSessionHistory() {
+  try { localStorage.setItem('cheque_session_history', JSON.stringify(history)); } catch (e) {}
+}
+
+function loadSessionHistory() {
+  try {
+    const saved = localStorage.getItem('cheque_session_history');
+    if (saved) { history = JSON.parse(saved); renderHistory(); }
+  } catch (e) {}
+}
+
+// =============================================
+// OFFLINE QUEUE
+// =============================================
+function queueOffline(pickupData, collector, timestamp, cheques) {
+  offlineQueue.push(pickupData);
+  saveOfflineQueue();
+  addToHistory(collector, timestamp, cheques, true);
+  updateOfflineBar();
+}
+
+function saveOfflineQueue() {
+  try { localStorage.setItem('cheque_offline_queue', JSON.stringify(offlineQueue)); } catch (e) {}
+}
+
+function loadOfflineQueue() {
+  try {
+    const saved = localStorage.getItem('cheque_offline_queue');
+    if (saved) offlineQueue = JSON.parse(saved);
+    updateOfflineBar();
+  } catch (e) {}
+}
+
+async function syncOfflineQueue() {
+  if (!isOnline || offlineQueue.length === 0) return;
+  updateOfflineBar();
+
+  const queue = [...offlineQueue];
+  let synced = 0;
+
+  for (let i = 0; i < queue.length; i++) {
+    try {
+      await api(queue[i]);
+      offlineQueue.shift();
+      saveOfflineQueue();
+      synced++;
+      updateOfflineBar();
+    } catch (err) {
+      break; // Stop on first failure, try again later
+    }
+  }
+
+  if (synced > 0) {
+    showToast('✅ Synced ' + synced + ' offline pickup(s)');
+    // Update history entries
+    history.forEach(h => { if (h.offline) h.offline = false; });
+    saveSessionHistory();
+    renderHistory();
+  }
+  updateOfflineBar();
+}
+
+// Periodic sync attempt
+setInterval(() => { if (isOnline && offlineQueue.length > 0) syncOfflineQueue(); }, 30000);
+
+// =============================================
+// ADMIN UPLOAD
+// =============================================
+const adminModal = $('adminModal');
+const uploadZone = $('uploadZone');
+const payrollFileInput = $('payrollFileInput');
+const uploadPreview = $('uploadPreview');
+const modalUploadBtn = $('modalUploadBtn');
+const uploadProgress = $('uploadProgress');
+const uploadErrorDiv = $('uploadError');
+const uploadSuccessDiv = $('uploadSuccess');
+let parsedPayroll = null;
+
+$('adminBtn').addEventListener('click', () => {
+  adminModal.classList.remove('hidden');
+  resetUploadModal();
+});
+
+$('modalCloseBtn').addEventListener('click', () => {
+  adminModal.classList.add('hidden');
+});
+
+adminModal.addEventListener('click', (e) => {
+  if (e.target === adminModal) adminModal.classList.add('hidden');
+});
+
+uploadZone.addEventListener('click', () => payrollFileInput.click());
+
+payrollFileInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  parsePayrollFile(file);
+  e.target.value = '';
+});
+
+function resetUploadModal() {
+  parsedPayroll = null;
+  uploadPreview.classList.add('hidden');
+  modalUploadBtn.classList.add('hidden');
+  uploadProgress.classList.add('hidden');
+  uploadErrorDiv.classList.add('hidden');
+  uploadSuccessDiv.classList.add('hidden');
+  uploadZone.classList.remove('hidden');
+}
+
+function parsePayrollFile(file) {
+  if (typeof XLSX === 'undefined') {
+    uploadErrorDiv.textContent = 'Excel library still loading — wait a moment and try again';
+    uploadErrorDiv.classList.remove('hidden');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, { type: 'array' });
+
+      // Detect week ending from filename or sheet content
+      let weekEnding = '';
+      const fm = file.name.match(/WE\d{4}/i);
+      if (fm) weekEnding = fm[0].toUpperCase();
+
+      // Parse each sheet
+      const sheets = [];
+      let totalCheques = 0;
+
+      wb.SheetNames.forEach(sheetName => {
+        const ws = wb.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+        // Try to detect week ending from content if not found yet
+        if (!weekEnding) {
+          for (let r = 0; r < Math.min(rows.length, 5); r++) {
+            if (!rows[r]) continue;
+            for (let c = 0; c < rows[r].length; c++) {
+              const v = String(rows[r][c] || '').trim();
+              const m = v.match(/^WE\d{4}$/i);
+              if (m) { weekEnding = v.toUpperCase(); break; }
+            }
+            if (weekEnding) break;
+          }
+        }
+
+        // Count cheques (rough count for preview)
+        let chqCount = 0;
+        rows.forEach(row => {
+          if (row) {
+            for (let c = 0; c < row.length; c++) {
+              if (String(row[c] || '').trim().toUpperCase() === 'CHQ') { chqCount++; break; }
+            }
+          }
+        });
+        totalCheques += chqCount;
+
+        // Clean rows for JSON serialization (handle dates, objects, etc.)
+        const cleanRows = rows.map(row =>
+          row.map(cell => {
+            if (cell === null || cell === undefined) return '';
+            if (cell instanceof Date) return cell.toISOString().split('T')[0];
+            if (typeof cell === 'object') return String(cell);
+            return cell;
+          })
+        );
+
+        sheets.push({ name: sheetName, rows: cleanRows });
+      });
+
+      if (!weekEnding) {
+        weekEnding = prompt('Could not detect week ending. Enter it (e.g. WE0214):') || '';
+        weekEnding = weekEnding.toUpperCase().trim();
+        if (!weekEnding) {
+          uploadErrorDiv.textContent = 'Week ending is required';
+          uploadErrorDiv.classList.remove('hidden');
+          return;
+        }
+      }
+
+      parsedPayroll = { weekEnding, sheets, fileName: file.name };
+
+      // Show preview
+      uploadZone.classList.add('hidden');
+      uploadPreview.classList.remove('hidden');
+      modalUploadBtn.classList.remove('hidden');
+      modalUploadBtn.disabled = false;
+      $('upWeek').textContent = weekEnding;
+      $('upOffices').textContent = sheets.map(s => s.name).join(', ');
+      $('upCount').textContent = sheets.length + ' office tabs · ~' + totalCheques + ' cheques';
+
+    } catch (err) {
+      uploadErrorDiv.textContent = 'Error reading file: ' + err.message;
+      uploadErrorDiv.classList.remove('hidden');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+modalUploadBtn.addEventListener('click', async () => {
+  if (!parsedPayroll) return;
+  modalUploadBtn.disabled = true;
+  uploadProgress.classList.remove('hidden');
+  uploadProgress.textContent = 'Uploading ' + parsedPayroll.sheets.length + ' office tabs...';
+  uploadErrorDiv.classList.add('hidden');
+
+  try {
+    const res = await api({
+      action: 'uploadPayroll',
+      weekEnding: parsedPayroll.weekEnding,
+      sheets: parsedPayroll.sheets
+    });
+
+    uploadProgress.classList.add('hidden');
+
+    if (res.error) {
+      uploadErrorDiv.textContent = res.error;
+      uploadErrorDiv.classList.remove('hidden');
+      modalUploadBtn.disabled = false;
+    } else {
+      uploadSuccessDiv.textContent = '✅ ' + res.message;
+      uploadSuccessDiv.classList.remove('hidden');
+      modalUploadBtn.classList.add('hidden');
+      // Refresh weeks
+      await loadWeeks();
+      showToast('✅ ' + parsedPayroll.weekEnding + ' uploaded successfully');
+    }
+  } catch (err) {
+    uploadProgress.classList.add('hidden');
+    uploadErrorDiv.textContent = 'Upload failed: ' + err.message;
+    uploadErrorDiv.classList.remove('hidden');
+    modalUploadBtn.disabled = false;
+  }
+});
+
+// =============================================
+// TOAST
+// =============================================
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+// =============================================
+// SHEETJS LOADER (cached for offline)
+// =============================================
+(function loadSheetJS() {
+  const CACHE_KEY = 'xlsx_lib_0185';
+  const CDN_URL = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+
+  function exec(code) {
+    try { const s = document.createElement('script'); s.textContent = code; document.body.appendChild(s); } catch (e) {}
+  }
+
+  const cached = localStorage.getItem(CACHE_KEY);
+  if (cached) {
+    exec(cached);
+    // Background refresh
+    if (navigator.onLine) {
+      fetch(CDN_URL).then(r => r.text()).then(t => {
+        try { localStorage.setItem(CACHE_KEY, t); } catch (e) {}
+      }).catch(() => {});
+    }
+  } else if (navigator.onLine) {
+    fetch(CDN_URL).then(r => r.text()).then(t => {
+      try { localStorage.setItem(CACHE_KEY, t); } catch (e) {}
+      exec(t);
+    }).catch(() => {});
+  }
+})();
+</script>
+</body>
+</html>
