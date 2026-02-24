@@ -1,0 +1,1817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0f172a">
+<title>Cheque Pickup — Apex Personnel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+/* ========================================
+   DESIGN: Refined Operations Tool
+   LIGHT: Warm ivory + charcoal + copper accent
+   DARK: Deep navy + soft white + gold accent
+   ======================================== */
+
+:root {
+  --bg: #f8fafc;
+  --bg-secondary: #f1f5f9;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-hover: #f8fafc;
+  --text: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #94a3b8;
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-soft: #eef2ff;
+  --accent-text: #4338ca;
+  --accent-glow: rgba(79,70,229,.12);
+  --header-bg: #0f172a;
+  --header-text: #f8fafc;
+  --header-dim: rgba(248,250,252,.4);
+  --green: #059669;
+  --green-soft: #ecfdf5;
+  --green-text: #047857;
+  --blue: #2563eb;
+  --blue-soft: #eff6ff;
+  --red: #dc2626;
+  --red-soft: #fef2f2;
+  --yellow: #d97706;
+  --yellow-bg: #fffbeb;
+  --border: #e2e8f0;
+  --border-light: #f1f5f9;
+  --shadow-sm: 0 1px 2px rgba(15,23,42,.04);
+  --shadow-md: 0 4px 16px rgba(15,23,42,.06);
+  --shadow-lg: 0 12px 40px rgba(15,23,42,.08);
+  --shadow-glow: 0 0 0 3px var(--accent-glow);
+  --radius: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --transition: .2s cubic-bezier(.4,0,.2,1);
+  --font: 'Outfit', -apple-system, sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+}
+
+/* ========== DARK MODE ========== */
+.dark {
+  --bg: #020617;
+  --bg-secondary: #0f172a;
+  --surface: #1e293b;
+  --surface-raised: #334155;
+  --surface-hover: #334155;
+  --text: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-tertiary: #64748b;
+  --accent: #818cf8;
+  --accent-hover: #a5b4fc;
+  --accent-soft: rgba(129,140,248,.1);
+  --accent-text: #a5b4fc;
+  --accent-glow: rgba(129,140,248,.15);
+  --header-bg: #020617;
+  --header-text: #f1f5f9;
+  --header-dim: rgba(241,245,249,.35);
+  --green: #34d399;
+  --green-soft: rgba(52,211,153,.08);
+  --green-text: #6ee7b7;
+  --blue: #60a5fa;
+  --blue-soft: rgba(96,165,250,.1);
+  --red: #fb7185;
+  --red-soft: rgba(251,113,133,.1);
+  --yellow: #fbbf24;
+  --yellow-bg: rgba(251,191,36,.08);
+  --border: #1e293b;
+  --border-light: #0f172a;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
+  --shadow-md: 0 4px 16px rgba(0,0,0,.35);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,.5);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+.hidden { display: none !important; }
+
+/* ========== ANIMATIONS ========== */
+@keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+@keyframes slideDown { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
+@keyframes shake { 0%,100%{transform:translateX(0);} 20%,60%{transform:translateX(-8px);} 40%,80%{transform:translateX(8px);} }
+@keyframes spin { to { transform:rotate(360deg); } }
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.5;} }
+@keyframes pop { 0%{transform:scale(.85);opacity:0;} 50%{transform:scale(1.03);} 100%{transform:scale(1);opacity:1;} }
+
+/* ========== OFFLINE BAR ========== */
+.offline-bar {
+  position:fixed; top:0; left:0; right:0; z-index:1000;
+  background:linear-gradient(135deg, #d97706, #b45309); color:#fff;
+  text-align:center; padding:8px 16px;
+  font-size:13px; font-weight:600; letter-spacing:.2px;
+  transform:translateY(-100%); transition:transform .3s cubic-bezier(.4,0,.2,1);
+  box-shadow:0 2px 12px rgba(217,119,6,.3);
+}
+.offline-bar.show { transform:translateY(0); }
+
+/* ========== PULL TO REFRESH ========== */
+.ptr-indicator {
+  position:fixed; top:0; left:50%; transform:translateX(-50%) translateY(-60px);
+  z-index:99; transition:transform .25s cubic-bezier(.4,0,.2,1);
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:24px; padding:8px 16px;
+  box-shadow:var(--shadow-md);
+  font-size:12px; font-weight:600; color:var(--text-secondary);
+  display:flex; align-items:center; gap:6px;
+}
+.ptr-indicator.pulling { transform:translateX(-50%) translateY(12px); }
+.ptr-indicator.refreshing { transform:translateX(-50%) translateY(12px); }
+.ptr-spinner { width:16px; height:16px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; }
+.ptr-indicator.refreshing .ptr-spinner { animation:spin .6s linear infinite; }
+
+/* ========== PIN SCREEN ========== */
+.pin-screen {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  min-height:100dvh; padding:24px;
+  background:var(--header-bg);
+  background-image:
+    radial-gradient(ellipse at 30% 70%, rgba(79,70,229,.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 30%, rgba(37,99,235,.06) 0%, transparent 50%);
+  position:relative; overflow:hidden;
+}
+.dark .pin-screen {
+  background-image:
+    radial-gradient(ellipse at 30% 70%, rgba(129,140,248,.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 30%, rgba(96,165,250,.04) 0%, transparent 50%);
+}
+.pin-screen::before {
+  content:''; position:absolute; inset:0;
+  background:url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0v60M0 30h60' stroke='%23ffffff' stroke-opacity='.03' stroke-width='.5'/%3E%3C/svg%3E");
+  pointer-events:none;
+}
+.pin-box {
+  background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07);
+  backdrop-filter:blur(20px);
+  border-radius:var(--radius-xl); padding:48px 36px;
+  text-align:center; max-width:380px; width:100%;
+  animation:fadeUp .5s cubic-bezier(.4,0,.2,1);
+  position:relative;
+}
+.pin-logo {
+  width:72px; height:72px;
+  background:linear-gradient(135deg, #6366f1, #4f46e5);
+  border-radius:18px; display:flex; align-items:center; justify-content:center;
+  color:#fff; font-weight:800; font-size:26px; letter-spacing:-1px;
+  margin:0 auto 20px;
+  box-shadow:0 8px 32px rgba(79,70,229,.3);
+}
+.dark .pin-logo { background:linear-gradient(135deg, #818cf8, #6366f1); box-shadow:0 8px 32px rgba(129,140,248,.2); }
+.pin-box h2 { font-size:24px; font-weight:700; color:#fff; letter-spacing:-.5px; }
+.pin-box .sub {
+  font-size:11px; color:rgba(255,255,255,.35); font-weight:600;
+  letter-spacing:2.5px; margin:4px 0 32px; text-transform:uppercase;
+}
+.pin-input { display:flex; gap:12px; justify-content:center; margin-bottom:24px; }
+.pin-digit {
+  width:56px; height:64px;
+  border:2px solid rgba(255,255,255,.1);
+  border-radius:var(--radius); text-align:center;
+  font-size:26px; font-weight:700; font-family:var(--mono);
+  background:rgba(255,255,255,.04); color:#fff;
+  outline:none; transition:var(--transition);
+  -webkit-text-security:disc;
+}
+.pin-digit:focus { border-color:var(--accent); box-shadow:var(--shadow-glow); }
+.pin-digit.filled { border-color:rgba(255,255,255,.2); background:rgba(255,255,255,.07); }
+.pin-digit.error { border-color:var(--red); animation:shake .5s; }
+.pin-error { color:#fca5a5; font-size:13px; font-weight:500; min-height:20px; margin-bottom:16px; }
+.pin-btn {
+  width:100%; padding:16px;
+  background:linear-gradient(135deg, #6366f1, #4f46e5);
+  color:#fff; border:none; border-radius:var(--radius);
+  font-size:15px; font-weight:700; font-family:var(--font);
+  cursor:pointer; transition:var(--transition);
+  letter-spacing:.3px;
+  box-shadow:0 4px 16px rgba(79,70,229,.25);
+}
+.dark .pin-btn { background:linear-gradient(135deg, #818cf8, #6366f1); box-shadow:0 4px 16px rgba(129,140,248,.2); }
+.pin-btn:not(:disabled):active { transform:scale(.98); }
+.pin-btn:disabled { opacity:.3; box-shadow:none; }
+.pin-theme-toggle {
+  position:absolute; top:16px; right:16px;
+  width:38px; height:38px; border-radius:10px;
+  border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.04);
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:var(--transition); color:#fff; overflow:hidden;
+}
+.pin-theme-toggle:active { background:rgba(255,255,255,.1); transform:scale(.95); }
+
+/* ========== LOADING SCREEN ========== */
+.loading-screen {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:60px 24px; text-align:center; animation:fadeIn .3s;
+}
+.loading-spinner {
+  width:40px; height:40px;
+  border:3px solid var(--border); border-top-color:var(--accent);
+  border-radius:50%; animation:spin .8s linear infinite;
+  margin-bottom:16px;
+}
+.loading-text { font-size:14px; font-weight:500; color:var(--text-secondary); }
+
+/* ========== HEADER ========== */
+.header {
+  background:var(--header-bg);
+  padding:14px 16px; display:flex;
+  align-items:center; justify-content:space-between;
+  position:sticky; top:0; z-index:100;
+}
+.header-left { display:flex; align-items:center; gap:12px; }
+.logo-sm {
+  width:36px; height:36px;
+  background:linear-gradient(135deg, #6366f1, #4f46e5);
+  border-radius:10px; display:flex; align-items:center; justify-content:center;
+  color:#fff; font-weight:800; font-size:15px; letter-spacing:-0.5px;
+}
+.dark .logo-sm { background:linear-gradient(135deg, #818cf8, #6366f1); }
+.header-title h1 { font-size:16px; font-weight:700; color:var(--header-text); letter-spacing:-.3px; line-height:1.2; }
+.header-title .sub { font-size:9px; color:var(--header-dim); font-weight:600; letter-spacing:1.5px; text-transform:uppercase; }
+.sync-status {
+  font-size:10px; color:var(--header-dim); font-weight:500;
+  cursor:pointer; margin-top:1px; display:flex; align-items:center; gap:4px;
+  transition:var(--transition);
+}
+.sync-status:active { opacity:.6; }
+.sync-dot { width:6px; height:6px; border-radius:50%; background:#4ade80; flex-shrink:0; }
+.sync-dot.stale { background:#fbbf24; }
+.sync-dot.offline { background:#f87171; }
+.header-actions { display:flex; gap:6px; align-items:center; }
+.btn-icon {
+  width:38px; height:38px; border-radius:10px;
+  border:1px solid rgba(255,255,255,.1);
+  background:rgba(255,255,255,.05);
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; font-size:16px; transition:var(--transition); color:#fff;
+}
+.btn-icon:active { background:rgba(255,255,255,.12); transform:scale(.95); }
+
+/* ========== THEME TOGGLE ========== */
+.theme-toggle {
+  width:38px; height:38px; border-radius:10px;
+  border:1px solid rgba(255,255,255,.1); background:rgba(255,255,255,.05);
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:var(--transition); color:#fff; position:relative; overflow:hidden;
+}
+.theme-toggle:active { background:rgba(255,255,255,.12); transform:scale(.95); }
+.theme-toggle .icon-sun, .theme-toggle .icon-moon { transition:var(--transition); position:absolute; }
+.theme-toggle .icon-sun { opacity:0; transform:rotate(-90deg) scale(.5); }
+.theme-toggle .icon-moon { opacity:1; transform:rotate(0) scale(1); }
+.dark .theme-toggle .icon-sun { opacity:1; transform:rotate(0) scale(1); }
+.dark .theme-toggle .icon-moon { opacity:0; transform:rotate(90deg) scale(.5); }
+
+/* ========== FILTER / SEARCH ========== */
+.filter-bar {
+  padding:12px 16px;
+  background:var(--surface); border-bottom:1px solid var(--border);
+  display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+  animation:slideDown .3s cubic-bezier(.4,0,.2,1);
+}
+.filter-select {
+  padding:10px 30px 10px 12px; border:1.5px solid var(--border);
+  border-radius:10px; font-size:13px; font-weight:500;
+  font-family:var(--font); background:var(--bg-secondary);
+  color:var(--text); min-width:0; flex-shrink:0;
+  transition:var(--transition); cursor:pointer;
+  appearance:none; -webkit-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg width='10' height='6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2394a3b8' fill='none' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 10px center;
+}
+.filter-select:focus { outline:none; border-color:var(--accent); box-shadow:var(--shadow-glow); }
+.search-wrap { flex:1; min-width:180px; position:relative; }
+.search-wrap input {
+  width:100%; padding:10px 14px 10px 40px;
+  border:1.5px solid var(--border); border-radius:10px;
+  font-size:14px; font-weight:400; font-family:var(--font);
+  background:var(--bg-secondary); outline:none; transition:var(--transition);
+  color:var(--text);
+}
+.search-wrap input::placeholder { color:var(--text-tertiary); }
+.search-wrap input:focus { border-color:var(--accent); box-shadow:var(--shadow-glow); background:var(--surface); }
+.search-icon { position:absolute; left:13px; top:50%; transform:translateY(-50%); width:18px; height:18px; color:var(--text-tertiary); pointer-events:none; }
+.search-loading {
+  position:absolute; right:12px; top:50%; transform:translateY(-50%);
+  width:18px; height:18px; border:2px solid var(--border); border-top-color:var(--accent);
+  border-radius:50%; animation:spin .6s linear infinite; display:none;
+}
+.search-loading.show { display:block; }
+
+/* ========== RESULTS ========== */
+.results-section { padding:8px 16px 0; }
+.result-header { display:flex; justify-content:space-between; align-items:center; padding:8px 0; }
+.result-count { font-size:13px; color:var(--text-secondary); font-weight:500; }
+.btn-select-all {
+  font-size:12px; font-weight:600; color:var(--accent-text);
+  background:var(--accent-soft); border:none; cursor:pointer;
+  padding:5px 12px; border-radius:6px; transition:var(--transition);
+  font-family:var(--font);
+}
+.btn-select-all:active { transform:scale(.96); }
+
+.cheque-list { display:flex; flex-direction:column; gap:6px; }
+
+.cheque-row {
+  display:flex; align-items:center; gap:10px;
+  padding:12px 14px; background:var(--surface);
+  border:1.5px solid var(--border-light);
+  border-radius:var(--radius); cursor:pointer;
+  transition:all .15s cubic-bezier(.4,0,.2,1);
+  flex-wrap:wrap; position:relative;
+  box-shadow:var(--shadow-sm);
+}
+.cheque-row:active { transform:scale(.99); }
+.cheque-row.selected {
+  border-color:var(--accent);
+  background:var(--accent-soft);
+  box-shadow:var(--shadow-glow), var(--shadow-sm);
+}
+.cheque-row.signed {
+  opacity:.5; cursor:default;
+  background:var(--bg-secondary); box-shadow:none; border-color:transparent;
+}
+.cheque-row.signed:active { transform:none; }
+
+.cb {
+  width:22px; height:22px; border:2px solid var(--border);
+  border-radius:7px; display:flex; align-items:center; justify-content:center;
+  flex-shrink:0; transition:var(--transition);
+}
+.cb svg { display:none; width:14px; height:14px; }
+.cheque-row.selected .cb { border-color:var(--accent); background:var(--accent); }
+.cheque-row.selected .cb svg { display:block; color:#fff; }
+
+.chq-info { flex:1; min-width:0; }
+.chq-top { display:flex; align-items:center; gap:8px; margin-bottom:2px; }
+.chq-num { font-family:var(--mono); font-weight:700; font-size:13px; color:var(--accent-text); letter-spacing:-.3px; }
+.chq-name { font-weight:600; font-size:15px; letter-spacing:-.2px; }
+.chq-bottom { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.chq-client { color:var(--text-tertiary); font-size:12px; }
+.chq-detail {
+  font-size:11px; font-weight:600; color:var(--text-secondary);
+  background:var(--bg-secondary); padding:2px 7px; border-radius:5px;
+  font-family:var(--mono); letter-spacing:-.2px;
+}
+.chq-pay {
+  font-family:var(--mono); font-size:14px; font-weight:700;
+  color:var(--green-text); white-space:nowrap; margin-left:auto;
+  background:var(--green-soft); padding:3px 10px; border-radius:6px;
+}
+.tag {
+  font-size:10px; font-weight:700; padding:3px 8px;
+  border-radius:5px; white-space:nowrap; letter-spacing:.3px; text-transform:uppercase;
+}
+.tag-week { color:var(--accent-text); background:var(--accent-soft); }
+.tag-office { color:var(--blue); background:var(--blue-soft); }
+.signed-badge {
+  font-size:12px; color:var(--green-text); font-weight:500;
+  width:100%; display:flex; align-items:center; gap:4px; padding:4px 0 0 32px;
+}
+.signed-badge svg { width:14px; height:14px; color:var(--green); }
+
+/* ========== COMMENT ROW ========== */
+.chq-comment-row {
+  width:100%; display:flex; align-items:center; gap:6px;
+  padding:4px 0 0 32px; min-height:0;
+}
+.chq-comment-text {
+  font-size:11px; color:var(--yellow); font-weight:500;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  max-width:calc(100% - 30px); line-height:1.3;
+}
+.chq-comment-text.empty { color:var(--text-tertiary); font-style:italic; }
+.btn-comment {
+  flex-shrink:0; width:24px; height:24px; border-radius:6px;
+  border:1px solid var(--border); background:var(--bg-secondary);
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:var(--transition); color:var(--text-tertiary);
+  padding:0;
+}
+.btn-comment:active { background:var(--accent-soft); color:var(--accent); transform:scale(.9); }
+.btn-comment svg { width:12px; height:12px; }
+
+/* ========== COMMENT MODAL ========== */
+.comment-modal .modal { max-width:400px; }
+.comment-modal .comment-name { font-size:14px; color:var(--text-secondary); margin-bottom:12px; }
+.comment-modal .comment-name strong { color:var(--accent-text); font-family:var(--mono); }
+.comment-modal textarea {
+  width:100%; min-height:100px; padding:12px;
+  border:1.5px solid var(--border); border-radius:10px;
+  font-size:14px; font-family:var(--font); background:var(--bg-secondary);
+  color:var(--text); resize:vertical; outline:none; transition:var(--transition);
+}
+.comment-modal textarea:focus { border-color:var(--accent); box-shadow:var(--shadow-glow); background:var(--surface); }
+.comment-modal .comment-saving { font-size:12px; color:var(--text-tertiary); margin-top:8px; animation:pulse 1.2s infinite; }
+
+/* ========== CART ACTIONS ========== */
+.cart-actions { display:flex; gap:6px; margin-top:10px; }
+.btn-export-receipt {
+  background:var(--accent-soft); color:var(--accent-text);
+  border:none; border-radius:8px; padding:8px 14px;
+  font-size:12px; font-weight:700; cursor:pointer;
+  font-family:var(--font); transition:var(--transition);
+  display:flex; align-items:center; gap:6px;
+}
+.btn-export-receipt:active { transform:scale(.96); opacity:.8; }
+.btn-export-receipt svg { width:14px; height:14px; }
+
+.empty-state { text-align:center; padding:40px 20px; color:var(--text-tertiary); font-size:14px; }
+.empty-state .empty-icon { font-size:40px; margin-bottom:12px; opacity:.5; }
+
+/* ========== SELECTED BAR ========== */
+.selected-bar {
+  background:var(--surface); border:1.5px solid var(--accent);
+  border-radius:var(--radius); margin:12px 16px 0; padding:14px;
+  box-shadow:var(--shadow-glow);
+  animation:fadeUp .3s cubic-bezier(.4,0,.2,1);
+}
+.selected-title { font-size:14px; font-weight:600; margin-bottom:10px; display:flex; align-items:center; gap:6px; }
+.selected-title .count-badge {
+  background:var(--accent); color:#fff;
+  font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px;
+}
+.btn-clear-cart {
+  margin-left:auto; background:var(--red-soft); color:var(--red);
+  border:none; border-radius:6px; padding:4px 10px;
+  font-size:11px; font-weight:700; cursor:pointer;
+  font-family:var(--font); transition:var(--transition);
+}
+.btn-clear-cart:active { transform:scale(.95); opacity:.8; }
+.selected-chips { display:flex; flex-wrap:wrap; gap:6px; }
+.selected-chip {
+  display:flex; align-items:center; gap:6px;
+  background:var(--bg-secondary); border:1px solid var(--border);
+  border-radius:8px; padding:6px 10px; font-size:12px; font-weight:500;
+  animation:pop .3s cubic-bezier(.4,0,.2,1);
+}
+.chip-chq { font-family:var(--mono); font-weight:700; color:var(--accent-text); }
+.chip-pay { font-family:var(--mono); font-weight:600; color:var(--green-text); font-size:10px; }
+.chip-detail { font-family:var(--mono); font-size:10px; color:var(--text-tertiary); font-weight:500; }
+.chip-remove {
+  cursor:pointer; color:var(--text-tertiary); font-weight:700;
+  width:18px; height:18px; display:flex; align-items:center; justify-content:center;
+  border-radius:50%; transition:var(--transition);
+}
+.chip-remove:hover { background:var(--red-soft); color:var(--red); }
+
+/* ========== ACTION AREA ========== */
+.action-area { padding:12px 16px 24px; }
+.action-card {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius-lg); padding:20px;
+  box-shadow:var(--shadow-md);
+  animation:fadeUp .4s cubic-bezier(.4,0,.2,1);
+}
+.action-card h3 { font-size:16px; font-weight:700; margin-bottom:16px; display:flex; align-items:center; gap:8px; }
+.input-row { margin-bottom:16px; }
+.input-row label { font-size:12px; font-weight:600; color:var(--text-secondary); display:block; margin-bottom:6px; letter-spacing:.3px; }
+.input-row input {
+  width:100%; padding:12px 14px;
+  border:1.5px solid var(--border); border-radius:10px;
+  font-size:15px; font-family:var(--font); background:var(--bg-secondary);
+  transition:var(--transition); color:var(--text);
+}
+.input-row input:focus { outline:none; border-color:var(--accent); box-shadow:var(--shadow-glow); background:var(--surface); }
+.input-row input::placeholder { color:var(--text-tertiary); }
+
+.photo-area { display:flex; gap:10px; margin-bottom:8px; }
+.btn-camera, .btn-upload {
+  flex:1; padding:16px 12px;
+  border:1.5px dashed var(--border); border-radius:var(--radius);
+  background:var(--bg-secondary); cursor:pointer; text-align:center;
+  font-size:13px; font-weight:600; font-family:var(--font);
+  transition:var(--transition); color:var(--text-secondary);
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+}
+.btn-camera .cam-icon, .btn-upload .cam-icon { font-size:24px; }
+.btn-camera:active, .btn-upload:active { border-color:var(--accent); background:var(--accent-soft); transform:scale(.97); }
+
+.skip-photo {
+  display:flex; align-items:center; justify-content:center; gap:6px;
+  margin-bottom:16px; font-size:12px; color:var(--text-tertiary); cursor:pointer;
+  font-weight:500; transition:var(--transition); padding:4px;
+}
+.skip-photo:active { color:var(--text-secondary); }
+.skip-toggle {
+  width:36px; height:20px; border-radius:10px;
+  background:var(--border); position:relative;
+  transition:var(--transition); flex-shrink:0;
+}
+.skip-toggle::after {
+  content:''; position:absolute; top:2px; left:2px;
+  width:16px; height:16px; border-radius:50%;
+  background:#fff; transition:var(--transition);
+  box-shadow:0 1px 3px rgba(0,0,0,.15);
+}
+.skip-photo.active .skip-toggle { background:var(--accent); }
+.skip-photo.active .skip-toggle::after { left:18px; }
+
+.photo-preview { margin-bottom:16px; display:none; position:relative; border-radius:var(--radius); overflow:hidden; }
+.photo-preview img { width:100%; display:block; max-height:200px; object-fit:cover; }
+.photo-preview .retake-btn {
+  position:absolute; top:8px; right:8px;
+  background:rgba(0,0,0,.6); color:#fff;
+  border:none; border-radius:8px; padding:6px 12px;
+  font-size:11px; font-weight:600; font-family:var(--font);
+  cursor:pointer; backdrop-filter:blur(4px);
+}
+
+.btn-confirm {
+  width:100%; padding:16px;
+  background:linear-gradient(135deg, #6366f1, #4f46e5);
+  color:#fff; border:none; border-radius:var(--radius);
+  font-size:16px; font-weight:700; font-family:var(--font);
+  cursor:pointer; transition:var(--transition); letter-spacing:.3px;
+  box-shadow:0 4px 16px rgba(79,70,229,.2);
+}
+.dark .btn-confirm { background:linear-gradient(135deg, #818cf8, #6366f1); box-shadow:0 4px 16px rgba(129,140,248,.15); }
+.btn-confirm:not(:disabled):active { transform:scale(.98); }
+.btn-confirm:disabled { opacity:.35; box-shadow:none; cursor:default; }
+.btn-confirm.processing { background:var(--text-secondary); animation:pulse 1.2s infinite; box-shadow:none; }
+.hint { font-size:11px; color:var(--text-tertiary); text-align:center; margin-top:10px; }
+
+/* ========== HISTORY ========== */
+.history-section { padding:16px; }
+.history-section h3 { font-size:14px; margin-bottom:10px; font-weight:600; color:var(--text-secondary); display:flex; align-items:center; gap:6px; }
+.history-item {
+  background:var(--surface); border:1px solid var(--border-light);
+  border-radius:var(--radius); padding:12px 14px; margin-bottom:6px;
+  font-size:13px; box-shadow:var(--shadow-sm);
+}
+.hi-top { display:flex; justify-content:space-between; margin-bottom:4px; }
+.hi-collector { font-weight:600; }
+.hi-time { color:var(--text-tertiary); font-size:12px; }
+.hi-cheques { color:var(--text-secondary); font-size:12px; }
+.hi-cheques span { color:var(--accent-text); font-family:var(--mono); font-weight:600; }
+.hi-offline { color:var(--yellow); font-size:11px; font-weight:600; margin-top:4px; }
+
+/* ========== MODALS ========== */
+.modal-overlay {
+  position:fixed; inset:0; background:rgba(15,23,42,.5);
+  z-index:200; display:flex; align-items:center; justify-content:center;
+  padding:16px; backdrop-filter:blur(4px); animation:fadeIn .2s;
+}
+.dark .modal-overlay { background:rgba(2,6,23,.7); }
+.modal {
+  background:var(--surface); border-radius:var(--radius-xl);
+  max-width:440px; width:100%; padding:28px;
+  max-height:85vh; overflow-y:auto;
+  box-shadow:var(--shadow-lg);
+  animation:fadeUp .3s cubic-bezier(.4,0,.2,1);
+}
+.modal h3 { font-size:20px; font-weight:700; letter-spacing:-.3px; }
+.modal .sub { font-size:13px; color:var(--text-secondary); margin:4px 0 20px; }
+.upload-zone {
+  border:2px dashed var(--border); border-radius:var(--radius);
+  padding:40px 16px; text-align:center; cursor:pointer;
+  margin-bottom:16px; transition:var(--transition);
+}
+.upload-zone:active { border-color:var(--accent); background:var(--accent-soft); }
+.upload-zone .icon { font-size:36px; margin-bottom:10px; }
+.upload-zone .text { font-size:14px; font-weight:600; color:var(--text-secondary); }
+.upload-preview { margin-bottom:16px; }
+.upload-preview .up-week { font-size:18px; font-weight:700; color:var(--accent-text); margin-bottom:4px; }
+.upload-preview .up-offices { font-size:13px; color:var(--text-secondary); }
+.upload-preview .up-count { font-size:13px; margin-top:4px; }
+.btn-modal {
+  padding:12px 24px; border:none; border-radius:10px;
+  font-size:14px; font-weight:600; cursor:pointer;
+  font-family:var(--font); transition:var(--transition);
+}
+.btn-modal:active { transform:scale(.97); }
+.btn-modal-primary {
+  background:linear-gradient(135deg, #6366f1, #4f46e5);
+  color:#fff; box-shadow:0 4px 12px rgba(79,70,229,.2);
+}
+.dark .btn-modal-primary { background:linear-gradient(135deg, #818cf8, #6366f1); box-shadow:0 4px 12px rgba(129,140,248,.15); }
+.btn-modal-secondary { background:var(--bg-secondary); color:var(--text); }
+.btn-modal:disabled { opacity:.4; }
+.modal-actions { display:flex; justify-content:flex-end; gap:8px; }
+.upload-progress { margin-bottom:12px; font-size:13px; color:var(--text-secondary); animation:pulse 1.5s infinite; }
+.upload-error { color:var(--red); font-size:13px; margin-bottom:12px; }
+.upload-success { color:var(--green); font-size:13px; margin-bottom:12px; font-weight:600; }
+
+/* ========== WEBCAM ========== */
+.webcam-video-wrap {
+  margin:16px 0; border-radius:var(--radius); overflow:hidden;
+  background:#000; box-shadow:var(--shadow-md);
+}
+.webcam-video-wrap video { width:100%; display:block; max-height:50vh; }
+
+/* ========== TOAST ========== */
+.toast {
+  position:fixed; bottom:32px; left:50%; transform:translateX(-50%) translateY(20px);
+  background:var(--header-bg); color:var(--header-text);
+  padding:12px 24px; border-radius:14px;
+  font-size:14px; font-weight:600; z-index:300;
+  opacity:0; transition:all .3s cubic-bezier(.4,0,.2,1);
+  pointer-events:none; box-shadow:var(--shadow-lg);
+  max-width:calc(100vw - 32px); border:1px solid var(--border);
+}
+.dark .toast { background:var(--surface-raised); border-color:var(--border); }
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+/* ========== MOBILE ========== */
+@media (max-width:480px) {
+  .pin-box { padding:36px 24px; }
+  .pin-digit { width:52px; height:58px; font-size:22px; }
+  .filter-bar { padding:10px 12px; gap:6px; }
+  .filter-select { padding:8px 28px 8px 10px; font-size:12px; }
+  .search-wrap input { padding:8px 12px 8px 36px; font-size:13px; }
+  .cheque-row { padding:10px 12px; }
+  .chq-name { font-size:14px; }
+  .action-card { padding:16px; }
+  .results-section { padding:8px 12px 0; }
+  .selected-bar { margin:10px 12px 0; }
+  .action-area { padding:10px 12px 20px; }
+  .history-section { padding:12px; }
+}
+
+@supports (padding-top:env(safe-area-inset-top)) {
+  .header { padding-top:max(14px, env(safe-area-inset-top)); }
+  .toast { bottom:max(32px, calc(env(safe-area-inset-bottom) + 12px)); }
+}
+</style>
+</head>
+<body>
+
+<!-- OFFLINE BAR -->
+<div class="offline-bar" id="offlineBar">⚡ Offline — pickups will sync when connection returns</div>
+
+<!-- PULL TO REFRESH INDICATOR -->
+<div class="ptr-indicator" id="ptrIndicator"><div class="ptr-spinner"></div><span id="ptrText">Pull to refresh</span></div>
+
+<!-- PIN SCREEN -->
+<div id="pinScreen" class="pin-screen">
+  <button class="pin-theme-toggle" id="pinThemeToggle" title="Toggle theme">
+    <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+    <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+  </button>
+  <div class="pin-box">
+    <div class="pin-logo">AP</div>
+    <h2>Cheque Pickup</h2>
+    <div class="sub">Apex Personnel Inc.</div>
+    <div class="pin-input">
+      <input class="pin-digit" type="tel" maxlength="1" inputmode="numeric" autofocus>
+      <input class="pin-digit" type="tel" maxlength="1" inputmode="numeric">
+      <input class="pin-digit" type="tel" maxlength="1" inputmode="numeric">
+      <input class="pin-digit" type="tel" maxlength="1" inputmode="numeric">
+    </div>
+    <div class="pin-error" id="pinError"></div>
+    <button class="pin-btn" id="pinBtn" disabled>Unlock</button>
+  </div>
+</div>
+
+<!-- MAIN SCREEN -->
+<div id="mainScreen" class="hidden">
+  <div class="header">
+    <div class="header-left">
+      <div class="logo-sm">AP</div>
+      <div class="header-title">
+        <h1>Cheque Pickup</h1>
+        <div class="sync-status" id="syncStatus" title="Tap to refresh">
+          <span class="sync-dot" id="syncDot"></span>
+          <span id="syncText">Loading...</span>
+        </div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="theme-toggle" id="themeToggle" title="Toggle theme">
+        <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+      </button>
+      <button class="btn-icon" id="adminBtn" title="Upload Payroll">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- LOADING SCREEN -->
+  <div class="loading-screen" id="loadingScreen">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Loading payroll data...</div>
+  </div>
+
+  <!-- MAIN CONTENT (hidden while loading) -->
+  <div id="mainContent" class="hidden">
+    <div class="filter-bar">
+      <select class="filter-select" id="weekFilter"><option value="ALL">All Weeks</option></select>
+      <select class="filter-select" id="officeFilter"><option value="ALL">All Offices</option></select>
+      <div class="search-wrap">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="searchInput" placeholder="Search name, client, or cheque #..." autocomplete="off">
+        <div class="search-loading" id="searchLoading"></div>
+      </div>
+    </div>
+
+    <div class="results-section hidden" id="resultsSection">
+      <div class="result-header">
+        <span class="result-count" id="resultCount"></span>
+        <button class="btn-select-all hidden" id="selectAllBtn">Select All</button>
+      </div>
+      <div class="cheque-list" id="chequeList"></div>
+    </div>
+
+    <div class="selected-bar hidden" id="selectedBar">
+      <div class="selected-title" id="selectedTitle"></div>
+      <div class="selected-chips" id="selectedChips"></div>
+    </div>
+
+    <div class="action-area hidden" id="actionArea">
+      <div class="action-card">
+        <h3>Confirm Pickup</h3>
+        <div class="input-row">
+          <label>Collector's Name</label>
+          <input type="text" id="collectorInput" placeholder="Who is collecting?">
+        </div>
+        <div id="photoSection">
+          <div class="photo-area">
+            <button class="btn-camera" id="cameraBtn"><span class="cam-icon">📷</span><span>Camera</span></button>
+            <button class="btn-upload" id="uploadBtn"><span class="cam-icon">📁</span><span>Upload</span></button>
+          </div>
+        </div>
+        <div class="skip-photo" id="skipPhoto">
+          <div class="skip-toggle"></div>
+          <span>Skip photo</span>
+        </div>
+        <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
+        <input type="file" id="uploadInput" accept="image/*" class="hidden">
+        <div class="photo-preview" id="photoPreview">
+          <img id="photoImg">
+          <button class="retake-btn" id="retakeBtn">✕ Retake</button>
+        </div>
+        <button class="btn-confirm" id="confirmBtn" disabled>Confirm Pickup</button>
+        <div class="hint">Updates Google Sheets & saves photo to Drive</div>
+      </div>
+    </div>
+
+    <div class="history-section hidden" id="historySection">
+      <h3>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        This Session
+      </h3>
+      <div id="historyList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN UPLOAD MODAL -->
+<div class="modal-overlay hidden" id="adminModal">
+  <div class="modal">
+    <h3>Upload Payroll</h3>
+    <div class="sub">Select a payroll Excel file to import</div>
+    <div class="upload-zone" id="uploadZone"><div class="icon">📄</div><div class="text">Tap to select .xlsx file</div></div>
+    <input type="file" id="payrollFileInput" accept=".xlsx,.xls" class="hidden">
+    <div class="upload-preview hidden" id="uploadPreview">
+      <div class="up-week" id="upWeek"></div>
+      <div class="up-offices" id="upOffices"></div>
+      <div class="up-count" id="upCount"></div>
+    </div>
+    <div class="upload-progress hidden" id="uploadProgress">Uploading...</div>
+    <div class="upload-error hidden" id="uploadError"></div>
+    <div class="upload-success hidden" id="uploadSuccess"></div>
+    <div class="modal-actions">
+      <button class="btn-modal btn-modal-secondary" id="modalCloseBtn">Cancel</button>
+      <button class="btn-modal btn-modal-primary hidden" id="modalUploadBtn" disabled>Upload</button>
+    </div>
+  </div>
+</div>
+
+<!-- WEBCAM MODAL -->
+<div class="modal-overlay hidden" id="webcamModal">
+  <div class="modal" style="max-width:500px">
+    <h3>📷 Take Photo</h3>
+    <div class="webcam-video-wrap"><video id="webcamVideo" autoplay playsinline></video></div>
+    <div id="webcamError" class="upload-error hidden"></div>
+    <div style="display:flex;gap:8px;justify-content:center;margin-top:12px">
+      <button class="btn-modal btn-modal-secondary" id="webcamCloseBtn">Cancel</button>
+      <button class="btn-modal btn-modal-primary" id="webcamSnapBtn">📸 Capture</button>
+    </div>
+  </div>
+</div>
+
+<!-- COMMENT EDIT MODAL -->
+<div class="modal-overlay comment-modal hidden" id="commentModal">
+  <div class="modal">
+    <h3>✏️ Edit Comment</h3>
+    <div class="comment-name" id="commentChequeInfo"></div>
+    <textarea id="commentTextarea" placeholder="Add a comment or remark..."></textarea>
+    <div class="comment-saving hidden" id="commentSaving">Saving...</div>
+    <div class="upload-error hidden" id="commentError"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button class="btn-modal btn-modal-secondary" id="commentCancelBtn">Cancel</button>
+      <button class="btn-modal btn-modal-primary" id="commentSaveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+<canvas id="stampCanvas" class="hidden"></canvas>
+
+<script>
+// =============================================
+// CONFIG
+// =============================================
+const API_URL = 'https://script.google.com/macros/s/AKfycby1YGRjS5Qhb5wgZmPS0T036uMWkXM-KuW-tIZBG4JmN4vbQqIc2X1EdJ10TLzzQNaaQg/exec';
+const AUTO_REFRESH_MS = 600000;   // 10 minutes
+const IDLE_TIMEOUT_MS = 900000;   // 15 minutes
+const MAX_CACHED_WEEKS = 4;
+const CONFIRM_COOLDOWN_MS = 3000; // Double-tap protection
+
+// =============================================
+// STATE
+// =============================================
+let pin = '';
+let weeksData = {};
+let weekOrder = [];
+let allCheques = [];
+let searchResults = [];
+let selected = new Set();
+let cart = new Map(); // uid → cheque object (persists across searches)
+let photoDataUrl = null;
+let skipPhotoMode = false;
+let history = [];
+let offlineQueue = [];
+let isOnline = navigator.onLine;
+let searchTimeout = null;
+let lastDataTimestamp = null;
+let dataLoading = false;
+let lastActivity = Date.now();
+let autoRefreshTimer = null;
+let confirmCooldown = false;
+
+// =============================================
+// THEME
+// =============================================
+(function initTheme() {
+  const saved = localStorage.getItem('cheque_theme');
+  if (saved === 'dark') document.documentElement.classList.add('dark');
+  else if (saved === 'light') document.documentElement.classList.remove('dark');
+  else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.classList.add('dark');
+})();
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+  if (!localStorage.getItem('cheque_theme')) document.documentElement.classList.toggle('dark', e.matches);
+});
+
+// =============================================
+// ELEMENTS
+// =============================================
+const $ = id => document.getElementById(id);
+const pinScreen = $('pinScreen'), mainScreen = $('mainScreen');
+const pinDigits = document.querySelectorAll('.pin-digit');
+const pinError = $('pinError'), pinBtn = $('pinBtn');
+const offlineBar = $('offlineBar');
+const loadingScreen = $('loadingScreen'), mainContent = $('mainContent');
+const weekFilter = $('weekFilter'), officeFilter = $('officeFilter');
+const searchInput = $('searchInput'), searchLoading = $('searchLoading');
+const resultsSection = $('resultsSection'), resultCount = $('resultCount');
+const selectAllBtn = $('selectAllBtn'), chequeList = $('chequeList');
+const selectedBar = $('selectedBar'), selectedTitle = $('selectedTitle'), selectedChips = $('selectedChips');
+const actionArea = $('actionArea'), collectorInput = $('collectorInput');
+const confirmBtn = $('confirmBtn'), photoPreview = $('photoPreview'), photoImg = $('photoImg');
+const historySection = $('historySection'), historyList = $('historyList');
+const toast = $('toast');
+const syncDot = $('syncDot'), syncText = $('syncText');
+
+// =============================================
+// THEME TOGGLES
+// =============================================
+function toggleTheme() {
+  const isDark = document.documentElement.classList.toggle('dark');
+  localStorage.setItem('cheque_theme', isDark ? 'dark' : 'light');
+}
+$('themeToggle').addEventListener('click', toggleTheme);
+$('pinThemeToggle').addEventListener('click', toggleTheme);
+
+// =============================================
+// IDLE DETECTION
+// =============================================
+function recordActivity() { lastActivity = Date.now(); }
+['click','touchstart','keydown','scroll'].forEach(evt => {
+  document.addEventListener(evt, recordActivity, { passive: true });
+});
+
+function isIdle() { return Date.now() - lastActivity > IDLE_TIMEOUT_MS; }
+
+// =============================================
+// OFFLINE
+// =============================================
+window.addEventListener('online', () => { isOnline = true; updateOfflineBar(); updateSyncStatus(); syncOfflineQueue(); });
+window.addEventListener('offline', () => { isOnline = false; updateOfflineBar(); updateSyncStatus(); });
+
+function updateOfflineBar() {
+  offlineBar.classList.toggle('show', !isOnline || offlineQueue.length > 0);
+  if (isOnline && offlineQueue.length > 0) offlineBar.textContent = '🔄 Syncing ' + offlineQueue.length + ' queued pickup(s)...';
+  else if (!isOnline) offlineBar.textContent = '⚡ Offline — pickups will sync when connection returns';
+  else offlineBar.classList.remove('show');
+}
+
+// =============================================
+// SYNC STATUS (header)
+// =============================================
+function updateSyncStatus() {
+  if (!isOnline) {
+    syncDot.className = 'sync-dot offline';
+    syncText.textContent = 'Offline';
+    return;
+  }
+  if (!lastDataTimestamp) {
+    syncDot.className = 'sync-dot stale';
+    syncText.textContent = 'Loading...';
+    return;
+  }
+  const ago = Math.round((Date.now() - new Date(lastDataTimestamp).getTime()) / 1000);
+  if (ago < 60) syncText.textContent = 'Synced just now';
+  else if (ago < 3600) syncText.textContent = 'Synced ' + Math.floor(ago / 60) + 'm ago';
+  else syncText.textContent = 'Synced ' + Math.floor(ago / 3600) + 'h ago';
+  syncDot.className = ago < 660 ? 'sync-dot' : 'sync-dot stale';
+}
+setInterval(updateSyncStatus, 30000);
+
+// Tap sync status to manually refresh
+$('syncStatus').addEventListener('click', () => {
+  if (isOnline && !dataLoading) {
+    syncText.textContent = 'Refreshing...';
+    refreshData();
+  }
+});
+
+// =============================================
+// API
+// =============================================
+async function api(payload) {
+  if (!payload.pin) payload.pin = pin;
+  try {
+    const resp = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload), redirect: 'follow'
+    });
+    const text = await resp.text();
+    try { return JSON.parse(text); }
+    catch (e) { console.error('API not JSON:', text.substring(0, 300)); throw new Error('Invalid server response'); }
+  } catch (err) { console.error('API fail:', err); throw err; }
+}
+
+// =============================================
+// PIN LOGIN
+// =============================================
+pinDigits.forEach((d, i) => {
+  d.addEventListener('input', () => {
+    d.value = d.value.replace(/\D/g, '');
+    if (d.value) { d.classList.add('filled'); if (i < 3) pinDigits[i + 1].focus(); }
+    else d.classList.remove('filled');
+    updatePinBtn();
+  });
+  d.addEventListener('keydown', e => {
+    if (e.key === 'Backspace' && !d.value && i > 0) { pinDigits[i - 1].focus(); pinDigits[i - 1].value = ''; pinDigits[i - 1].classList.remove('filled'); }
+    if (e.key === 'Enter') pinBtn.click();
+  });
+  d.addEventListener('focus', () => d.select());
+});
+
+function updatePinBtn() { pinBtn.disabled = Array.from(pinDigits).map(d => d.value).join('').length !== 4; }
+
+pinBtn.addEventListener('click', async () => {
+  const code = Array.from(pinDigits).map(d => d.value).join('');
+  pinBtn.disabled = true; pinBtn.textContent = 'Verifying...'; pinError.textContent = '';
+
+  const cachedPin = localStorage.getItem('cheque_pin');
+  const cachedData = localStorage.getItem('cheque_alldata');
+
+  // Fast path: cached PIN + cached data
+  if (cachedPin === code && cachedData) {
+    pin = code;
+    enterMainScreen(cachedData);
+    refreshData(); // Background refresh
+    pinBtn.disabled = false; pinBtn.textContent = 'Unlock';
+    return;
+  }
+
+  // Slow path: verify with server
+  try {
+    const res = await api({ action: 'verifyPin', pin: code });
+    if (res.ok) {
+      pin = code; localStorage.setItem('cheque_pin', code);
+      pinScreen.classList.add('hidden'); mainScreen.classList.remove('hidden');
+      loadingScreen.classList.remove('hidden'); mainContent.classList.add('hidden');
+      await loadAllData();
+      loadingScreen.classList.add('hidden'); mainContent.classList.remove('hidden');
+      loadOfflineQueue(); loadSessionHistory();
+      if (offlineQueue.length > 0) syncOfflineQueue();
+      startAutoRefresh();
+    } else {
+      pinError.textContent = res.error || 'Incorrect PIN';
+      pinDigits.forEach(d => { d.classList.add('error'); d.value = ''; d.classList.remove('filled'); });
+      pinDigits[0].focus();
+      setTimeout(() => pinDigits.forEach(d => d.classList.remove('error')), 600);
+    }
+  } catch (err) {
+    if (cachedPin === code && cachedData) {
+      pin = code; enterMainScreen(cachedData);
+      showToast('⚡ Offline mode — using cached data');
+    } else {
+      pinError.textContent = 'Connection error: ' + err.message;
+    }
+  }
+  pinBtn.disabled = false; pinBtn.textContent = 'Unlock';
+});
+
+function enterMainScreen(cachedDataStr) {
+  pinScreen.classList.add('hidden'); mainScreen.classList.remove('hidden');
+  try {
+    const d = JSON.parse(cachedDataStr);
+    weeksData = d.weeks || {};
+    weekOrder = d.weekOrder || Object.keys(weeksData);
+    allCheques = d.cheques || [];
+    lastDataTimestamp = d.timestamp;
+    populateFilters(); updateSyncStatus();
+  } catch(e) {}
+  loadingScreen.classList.add('hidden'); mainContent.classList.remove('hidden');
+  loadOfflineQueue(); loadSessionHistory();
+  if (offlineQueue.length > 0) syncOfflineQueue();
+  startAutoRefresh();
+}
+
+// Auto-fill cached PIN
+(function() {
+  const cached = localStorage.getItem('cheque_pin');
+  if (cached) {
+    cached.split('').forEach((c, i) => { if (pinDigits[i]) { pinDigits[i].value = c; pinDigits[i].classList.add('filled'); } });
+    updatePinBtn();
+  }
+})();
+
+// =============================================
+// DATA LOADING
+// =============================================
+async function loadAllData() {
+  if (dataLoading) return;
+  dataLoading = true;
+  try {
+    const res = await api({ action: 'getAllData' });
+    weeksData = res.weeks || {};
+    weekOrder = res.weekOrder || Object.keys(weeksData);
+    allCheques = res.cheques || [];
+    lastDataTimestamp = res.timestamp;
+    cacheRecentData(); populateFilters(); updateSyncStatus();
+  } catch (err) { showToast('Could not load data'); }
+  dataLoading = false;
+}
+
+async function refreshData() {
+  if (dataLoading) return;
+  dataLoading = true;
+  try {
+    const res = await api({ action: 'getAllData' });
+    weeksData = res.weeks || {};
+    weekOrder = res.weekOrder || Object.keys(weeksData);
+    allCheques = res.cheques || [];
+    lastDataTimestamp = res.timestamp;
+    cacheRecentData(); populateFilters(); updateSyncStatus();
+    if (searchInput.value.trim().length >= 2) doSearch();
+  } catch (err) { /* silent */ }
+  dataLoading = false;
+}
+
+function cacheRecentData() {
+  const recentWeeks = weekOrder.slice(0, MAX_CACHED_WEEKS);
+  const recentCheques = allCheques.filter(c => recentWeeks.includes(c.week));
+  const cached = { weeks: weeksData, weekOrder, cheques: recentCheques, cachedWeeks: recentWeeks, timestamp: lastDataTimestamp };
+  try { localStorage.setItem('cheque_alldata', JSON.stringify(cached)); } catch(e) {
+    try {
+      const fewer = weekOrder.slice(0, 2);
+      cached.cheques = allCheques.filter(c => fewer.includes(c.week));
+      cached.cachedWeeks = fewer;
+      localStorage.setItem('cheque_alldata', JSON.stringify(cached));
+    } catch(e2) {}
+  }
+}
+
+// =============================================
+// AUTO REFRESH (with idle detection)
+// =============================================
+function startAutoRefresh() {
+  if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+  autoRefreshTimer = setInterval(() => {
+    if (!isOnline || !pin) return;
+    if (isIdle()) return; // Don't refresh when idle
+    refreshData();
+  }, AUTO_REFRESH_MS);
+}
+
+// Resume on activity after idle
+document.addEventListener('click', () => {
+  if (pin && isOnline && lastDataTimestamp) {
+    const ago = Date.now() - new Date(lastDataTimestamp).getTime();
+    if (ago > IDLE_TIMEOUT_MS) {
+      syncText.textContent = 'Refreshing...';
+      refreshData();
+    }
+  }
+}, { once: false });
+
+// =============================================
+// FILTERS
+// =============================================
+function populateFilters() {
+  const currentWeek = weekFilter.value, currentOffice = officeFilter.value;
+  weekFilter.innerHTML = '<option value="ALL">All Weeks</option>';
+  const ordered = weekOrder.length > 0 ? weekOrder : Object.keys(weeksData);
+  ordered.forEach(w => {
+    if (!weeksData[w]) return;
+    weekFilter.innerHTML += '<option value="' + w + '"' + (w === currentWeek ? ' selected' : '') + '>' + w + '</option>';
+  });
+  updateOfficeFilter();
+  if (currentOffice && officeFilter.querySelector('option[value="' + currentOffice + '"]')) officeFilter.value = currentOffice;
+}
+
+function updateOfficeFilter() {
+  const w = weekFilter.value;
+  let offices = new Set();
+  if (w === 'ALL') Object.values(weeksData).forEach(arr => arr.forEach(o => offices.add(o)));
+  else if (weeksData[w]) weeksData[w].forEach(o => offices.add(o));
+  officeFilter.innerHTML = '<option value="ALL">All Offices</option>';
+  Array.from(offices).sort().forEach(o => { officeFilter.innerHTML += '<option value="' + o + '">' + o + '</option>'; });
+}
+
+weekFilter.addEventListener('change', () => { updateOfficeFilter(); doSearch(); });
+officeFilter.addEventListener('change', doSearch);
+
+// =============================================
+// SEARCH (local + server fallback)
+// =============================================
+searchInput.addEventListener('input', () => {
+  clearTimeout(searchTimeout);
+  if (searchInput.value.trim().length < 2) { resultsSection.classList.add('hidden'); searchResults = []; renderCart(); return; }
+  searchTimeout = setTimeout(doSearch, 30);
+});
+
+function doSearch() {
+  const q = searchInput.value.trim().toLowerCase();
+  if (q.length < 2) { resultsSection.classList.add('hidden'); return; }
+  const wf = weekFilter.value, of2 = officeFilter.value;
+
+  if (wf !== 'ALL' && !allCheques.some(c => c.week === wf)) { doServerSearch(q, wf, of2); return; }
+
+  searchResults = allCheques.filter(c => {
+    if (wf !== 'ALL' && c.week !== wf) return false;
+    if (of2 !== 'ALL' && c.office !== of2) return false;
+    const full = (c.lastName + ' ' + c.firstName).toLowerCase();
+    return full.includes(q) || c.lastName.toLowerCase().includes(q) || c.firstName.toLowerCase().includes(q) || c.client.toLowerCase().includes(q) || c.chqNo.toLowerCase().includes(q);
+  });
+  searchResults.sort((a, b) => {
+    if (a.hasSignature !== b.hasSignature) return a.hasSignature ? 1 : -1;
+    return (parseInt(a.chqNo) || 0) - (parseInt(b.chqNo) || 0);
+  });
+  renderResults();
+}
+
+async function doServerSearch(query, week, office) {
+  searchLoading.classList.add('show');
+  try { const res = await api({ action: 'search', query, week, office }); searchResults = res.results || []; renderResults(); }
+  catch (err) { chequeList.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div>Could not load — check connection</div>'; resultsSection.classList.remove('hidden'); }
+  searchLoading.classList.remove('show');
+}
+
+// =============================================
+// RENDER RESULTS
+// =============================================
+const checkSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+const signedSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
+
+const editSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+
+function renderResults() {
+  const q = searchInput.value.trim();
+  if (!q) { resultsSection.classList.add('hidden'); return; }
+  resultsSection.classList.remove('hidden');
+
+  const uncollected = searchResults.filter(c => !c.hasSignature), collected = searchResults.filter(c => c.hasSignature);
+  let ct = uncollected.length + ' available';
+  if (collected.length > 0) ct += ' · ' + collected.length + ' collected';
+  resultCount.textContent = ct;
+
+  if (uncollected.length > 1) {
+    selectAllBtn.classList.remove('hidden');
+    selectAllBtn.textContent = uncollected.every(c => selected.has(c.uid)) ? 'Deselect All' : 'Select All';
+  } else selectAllBtn.classList.add('hidden');
+
+  if (searchResults.length === 0) { chequeList.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div>No cheques match "' + q + '"</div>'; renderCart(); return; }
+
+  chequeList.innerHTML = '';
+  const showWeek = weekFilter.value === 'ALL', showOffice = officeFilter.value === 'ALL';
+
+  searchResults.forEach(c => {
+    const row = document.createElement('div');
+    const commentHtml = buildCommentRow(c);
+    if (c.hasSignature) {
+      row.className = 'cheque-row signed';
+      let collectedBy = '', collectedAt = '';
+      if (c.signatureText.indexOf('Collected by') === 0) { const p = c.signatureText.split(' \u2014 '); collectedBy = (p[0] || '').replace('Collected by ', ''); collectedAt = p[1] || ''; }
+      else collectedBy = c.signatureText;
+      row.innerHTML = '<div class="cb" style="border-color:transparent"></div><div class="chq-info"><div class="chq-top"><span class="chq-num" style="opacity:.5">' + c.chqNo + '</span><span class="chq-name" style="opacity:.6">' + c.lastName + ' ' + c.firstName + '</span></div><div class="chq-bottom">' + (showWeek ? '<span class="tag tag-week">' + c.week + '</span>' : '') + (showOffice ? '<span class="tag tag-office">' + c.office + '</span>' : '') + '</div><div class="signed-badge">' + signedSvg + ' ' + (collectedBy || 'Collected') + (collectedAt ? ' · ' + collectedAt : '') + '</div>' + commentHtml + '</div>';
+    } else {
+      row.className = 'cheque-row' + (selected.has(c.uid) ? ' selected' : '');
+      let detailTags = '<span class="chq-client">' + c.client + '</span>';
+      if (c.payRate) detailTags += '<span class="chq-detail">$' + c.payRate.toFixed(2) + '/hr</span>';
+      if (c.hours) detailTags += '<span class="chq-detail">' + c.hours + 'h</span>';
+      detailTags += (showWeek ? '<span class="tag tag-week">' + c.week + '</span>' : '') + (showOffice ? '<span class="tag tag-office">' + c.office + '</span>' : '');
+      row.innerHTML = '<div class="cb">' + checkSvg + '</div><div class="chq-info"><div class="chq-top"><span class="chq-num">' + c.chqNo + '</span><span class="chq-name">' + c.lastName + ' ' + c.firstName + '</span></div><div class="chq-bottom">' + detailTags + '</div>' + commentHtml + '</div><span class="chq-pay">$' + c.netPay.toFixed(2) + '</span>';
+      row.addEventListener('click', e => { if (e.target.closest('.btn-comment')) return; toggleSelect(c.uid); });
+    }
+    // Attach comment edit handler
+    const commentBtn = row.querySelector('.btn-comment');
+    if (commentBtn) commentBtn.addEventListener('click', e => { e.stopPropagation(); openCommentEditor(c); });
+    chequeList.appendChild(row);
+  });
+  renderCart(); updateConfirmBtn();
+}
+
+function buildCommentRow(c) {
+  if (c.commentCol === undefined || c.commentCol < 0) return '';
+  const hasComment = c.comment && c.comment.length > 0;
+  return '<div class="chq-comment-row"><span class="chq-comment-text' + (hasComment ? '' : ' empty') + '">' + (hasComment ? '💬 ' + escapeHtml(c.comment) : 'No comment') + '</span><button class="btn-comment" title="Edit comment">' + editSvg + '</button></div>';
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div'); d.textContent = str; return d.innerHTML;
+}
+
+// =============================================
+// SELECTION (Cart System)
+// =============================================
+function toggleSelect(uid) {
+  if (cart.has(uid)) {
+    cart.delete(uid);
+    selected.delete(uid);
+  } else {
+    const cheque = searchResults.find(c => c.uid === uid) || allCheques.find(c => c.uid === uid);
+    if (cheque && !cheque.hasSignature) {
+      cart.set(uid, cheque);
+      selected.add(uid);
+    }
+  }
+  renderResults(); renderCart();
+}
+
+selectAllBtn.addEventListener('click', () => {
+  const unc = searchResults.filter(c => !c.hasSignature);
+  const allSelected = unc.every(c => cart.has(c.uid));
+  unc.forEach(c => {
+    if (allSelected) { cart.delete(c.uid); selected.delete(c.uid); }
+    else { cart.set(c.uid, c); selected.add(c.uid); }
+  });
+  renderResults(); renderCart();
+});
+
+function getSelectedCheques() {
+  return Array.from(cart.values()).sort((a, b) => (parseInt(a.chqNo) || 0) - (parseInt(b.chqNo) || 0));
+}
+
+function clearCart() {
+  cart.clear();
+  selected.clear();
+  renderResults(); renderCart();
+}
+
+function renderCart() {
+  const sel = getSelectedCheques();
+  if (sel.length === 0) { selectedBar.classList.add('hidden'); actionArea.classList.add('hidden'); return; }
+  selectedBar.classList.remove('hidden'); actionArea.classList.remove('hidden');
+  const total = sel.reduce((s, c) => s + c.netPay, 0);
+  selectedTitle.innerHTML = '<span class="count-badge">' + sel.length + '</span> cheque' + (sel.length !== 1 ? 's' : '') + ' — $' + total.toFixed(2) + '<button class="btn-clear-cart" id="clearCartBtn" title="Clear all">✕ Clear</button>';
+  selectedChips.innerHTML = '';
+  sel.forEach(c => {
+    const chip = document.createElement('span'); chip.className = 'selected-chip';
+    let chipDetails = '<span class="chip-chq">' + c.chqNo + '</span><span>' + c.lastName + ' ' + c.firstName + '</span>';
+    if (c.payRate) chipDetails += '<span class="chip-detail">$' + c.payRate.toFixed(2) + '/hr</span>';
+    if (c.hours) chipDetails += '<span class="chip-detail">' + c.hours + 'h</span>';
+    chipDetails += '<span class="chip-pay">$' + c.netPay.toFixed(2) + '</span>';
+    chipDetails += '<span class="chip-remove" data-uid="' + c.uid + '">✕</span>';
+    chip.innerHTML = chipDetails;
+    selectedChips.appendChild(chip);
+  });
+  // Cart actions row
+  const actionsRow = document.createElement('div'); actionsRow.className = 'cart-actions';
+  actionsRow.innerHTML = '<button class="btn-export-receipt" id="exportReceiptBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>Export Receipt</button>';
+  selectedChips.after(actionsRow);
+
+  selectedChips.querySelectorAll('.chip-remove').forEach(btn => btn.addEventListener('click', e => {
+    e.stopPropagation();
+    cart.delete(btn.dataset.uid);
+    selected.delete(btn.dataset.uid);
+    renderResults(); renderCart();
+  }));
+  document.getElementById('clearCartBtn').addEventListener('click', clearCart);
+  document.getElementById('exportReceiptBtn').addEventListener('click', exportReceipt);
+  updateConfirmBtn();
+}
+
+// =============================================
+// COMMENT EDITOR
+// =============================================
+let editingCheque = null;
+const commentModal = $('commentModal'), commentTextarea = $('commentTextarea');
+const commentSaving = $('commentSaving'), commentError = $('commentError');
+
+function openCommentEditor(cheque) {
+  editingCheque = cheque;
+  commentModal.classList.remove('hidden');
+  $('commentChequeInfo').innerHTML = '<strong>' + cheque.chqNo + '</strong> — ' + cheque.lastName + ' ' + cheque.firstName + ' · ' + cheque.week + ' / ' + cheque.office;
+  commentTextarea.value = cheque.comment || '';
+  commentSaving.classList.add('hidden');
+  commentError.classList.add('hidden');
+  commentTextarea.focus();
+}
+
+function closeCommentEditor() { commentModal.classList.add('hidden'); editingCheque = null; }
+$('commentCancelBtn').addEventListener('click', closeCommentEditor);
+commentModal.addEventListener('click', e => { if (e.target === commentModal) closeCommentEditor(); });
+
+$('commentSaveBtn').addEventListener('click', async () => {
+  if (!editingCheque) return;
+  const newComment = commentTextarea.value.trim();
+  commentSaving.classList.remove('hidden'); commentError.classList.add('hidden');
+  $('commentSaveBtn').disabled = true;
+
+  try {
+    const res = await api({
+      action: 'updateComment',
+      sheetName: editingCheque.sheetName,
+      rowIndex: editingCheque.rowIndex,
+      commentCol: editingCheque.commentCol,
+      comment: newComment
+    });
+    if (res.error) { commentError.textContent = res.error; commentError.classList.remove('hidden'); }
+    else {
+      // Update local data
+      editingCheque.comment = newComment;
+      const local = allCheques.find(c => c.uid === editingCheque.uid);
+      if (local) local.comment = newComment;
+      if (cart.has(editingCheque.uid)) cart.get(editingCheque.uid).comment = newComment;
+      showToast('✅ Comment saved');
+      closeCommentEditor();
+      renderResults();
+    }
+  } catch (err) { commentError.textContent = 'Failed: ' + err.message; commentError.classList.remove('hidden'); }
+  commentSaving.classList.add('hidden'); $('commentSaveBtn').disabled = false;
+});
+
+// =============================================
+// EXPORT RECEIPT (PDF)
+// =============================================
+function exportReceipt() {
+  const sel = getSelectedCheques();
+  if (sel.length === 0) return;
+
+  if (typeof jspdf === 'undefined' && typeof window.jspdf === 'undefined') {
+    showToast('PDF library loading — try again in a moment');
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const marginL = 16, marginR = 16, usableW = pageW - marginL - marginR;
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-CA') + ' ' + now.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+  const weekLabel = sel[0].week || '';
+
+  // ---- Header ----
+  let y = 18;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.text('Cheque Distribution Receipt', marginL, y);
+  y += 7;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(100);
+  doc.text('Apex Personnel Inc.', marginL, y);
+  y += 5;
+  doc.text('Generated: ' + dateStr, marginL, y);
+  if (weekLabel) { doc.text('Week Ending: ' + weekLabel, pageW - marginR, y, { align: 'right' }); }
+  y += 3;
+  doc.setDrawColor(200);
+  doc.line(marginL, y, pageW - marginR, y);
+  y += 6;
+
+  // ---- Table header ----
+  doc.setTextColor(50);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  const colX = { num: marginL, chq: marginL + 8, name: marginL + 38, office: marginL + 108, pay: pageW - marginR };
+  doc.text('#', colX.num, y);
+  doc.text('Chq No.', colX.chq, y);
+  doc.text('Name', colX.name, y);
+  doc.text('Office', colX.office, y);
+  doc.text('Net Pay', colX.pay, y, { align: 'right' });
+  y += 2;
+  doc.setDrawColor(180);
+  doc.line(marginL, y, pageW - marginR, y);
+  y += 5;
+
+  // ---- Table rows ----
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  let total = 0;
+  sel.forEach((c, idx) => {
+    if (y > pageH - 30) {
+      doc.addPage();
+      y = 18;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(50);
+      doc.text('#', colX.num, y); doc.text('Chq No.', colX.chq, y); doc.text('Name', colX.name, y); doc.text('Office', colX.office, y); doc.text('Net Pay', colX.pay, y, { align: 'right' });
+      y += 2; doc.line(marginL, y, pageW - marginR, y); y += 5;
+      doc.setFont('helvetica', 'normal');
+    }
+    doc.setTextColor(60);
+    doc.text(String(idx + 1), colX.num, y);
+    doc.setFont('courier', 'bold');
+    doc.text(c.chqNo, colX.chq, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text((c.lastName + ' ' + c.firstName).substring(0, 35), colX.name, y);
+    doc.setFontSize(8);
+    doc.text(c.office || '', colX.office, y);
+    doc.setFontSize(9);
+    doc.setFont('courier', 'bold');
+    doc.text('$' + c.netPay.toFixed(2), colX.pay, y, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    total += c.netPay;
+    y += 5.5;
+    // Light separator
+    if (idx < sel.length - 1) { doc.setDrawColor(230); doc.line(marginL, y - 2.5, pageW - marginR, y - 2.5); }
+  });
+
+  // ---- Total ----
+  y += 2;
+  doc.setDrawColor(60);
+  doc.line(marginL, y, pageW - marginR, y);
+  y += 6;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(30);
+  doc.text('Total: ' + sel.length + ' cheque' + (sel.length !== 1 ? 's' : ''), marginL, y);
+  doc.setFont('courier', 'bold');
+  doc.text('$' + total.toFixed(2), colX.pay, y, { align: 'right' });
+
+  // ---- Signature lines ----
+  y += 18;
+  if (y > pageH - 40) { doc.addPage(); y = 30; }
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(80);
+  doc.text('Distributed by: _____________________________', marginL, y);
+  y += 12;
+  doc.text('Received by:    _____________________________', marginL, y);
+  y += 12;
+  doc.text('Date / Time:    _____________________________', marginL, y);
+
+  // ---- Footer ----
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let p = 1; p <= pageCount; p++) {
+    doc.setPage(p);
+    doc.setFontSize(7); doc.setTextColor(160); doc.setFont('helvetica', 'normal');
+    doc.text('Apex Personnel — Cheque Distribution Receipt', marginL, pageH - 8);
+    doc.text('Page ' + p + ' of ' + pageCount, pageW - marginR, pageH - 8, { align: 'right' });
+  }
+
+  // Save
+  const filename = 'Receipt_' + weekLabel + '_' + sel.length + 'chq_' + now.toLocaleDateString('en-CA') + '.pdf';
+  doc.save(filename);
+  showToast('📄 Receipt exported');
+}
+
+// =============================================
+// PHOTO + SKIP PHOTO
+// =============================================
+const cameraInput = $('cameraInput'), uploadInput = $('uploadInput');
+const webcamModal = $('webcamModal'), webcamVideo = $('webcamVideo'), webcamError = $('webcamError');
+let webcamStream = null;
+
+function isMobile() { return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent); }
+$('cameraBtn').addEventListener('click', () => { if (isMobile()) cameraInput.click(); else openWebcam(); });
+$('uploadBtn').addEventListener('click', () => uploadInput.click());
+cameraInput.addEventListener('change', handlePhoto);
+uploadInput.addEventListener('change', handlePhoto);
+$('retakeBtn').addEventListener('click', () => { photoDataUrl = null; photoPreview.style.display = 'none'; updateConfirmBtn(); });
+
+$('skipPhoto').addEventListener('click', () => {
+  skipPhotoMode = !skipPhotoMode;
+  $('skipPhoto').classList.toggle('active', skipPhotoMode);
+  $('photoSection').style.display = skipPhotoMode ? 'none' : '';
+  if (skipPhotoMode) { photoDataUrl = null; photoPreview.style.display = 'none'; }
+  updateConfirmBtn();
+});
+
+function handlePhoto(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => { photoDataUrl = ev.target.result; photoImg.src = photoDataUrl; photoPreview.style.display = 'block'; updateConfirmBtn(); };
+  reader.readAsDataURL(file); e.target.value = '';
+}
+
+async function openWebcam() {
+  webcamModal.classList.remove('hidden'); webcamError.classList.add('hidden');
+  try { webcamStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false }); webcamVideo.srcObject = webcamStream; }
+  catch (err) { webcamError.textContent = 'Camera error: ' + err.message; webcamError.classList.remove('hidden'); }
+}
+function closeWebcam() { if (webcamStream) { webcamStream.getTracks().forEach(t => t.stop()); webcamStream = null; } webcamVideo.srcObject = null; webcamModal.classList.add('hidden'); }
+$('webcamCloseBtn').addEventListener('click', closeWebcam);
+webcamModal.addEventListener('click', e => { if (e.target === webcamModal) closeWebcam(); });
+$('webcamSnapBtn').addEventListener('click', () => {
+  if (!webcamStream) return;
+  const c = document.createElement('canvas'); c.width = webcamVideo.videoWidth; c.height = webcamVideo.videoHeight;
+  c.getContext('2d').drawImage(webcamVideo, 0, 0);
+  photoDataUrl = c.toDataURL('image/jpeg', 0.85); photoImg.src = photoDataUrl; photoPreview.style.display = 'block'; updateConfirmBtn(); closeWebcam();
+});
+
+// =============================================
+// CONFIRM PICKUP
+// =============================================
+function updateConfirmBtn() {
+  const sel = getSelectedCheques();
+  const hasCollector = collectorInput.value.trim().length > 0;
+  const hasPhoto = skipPhotoMode || !!photoDataUrl;
+  confirmBtn.disabled = sel.length === 0 || !hasCollector || !hasPhoto || confirmCooldown;
+}
+collectorInput.addEventListener('input', updateConfirmBtn);
+
+confirmBtn.addEventListener('click', async () => {
+  if (confirmCooldown) return;
+  const sel = getSelectedCheques();
+  if (sel.length === 0) return;
+  const collector = collectorInput.value.trim();
+  if (!collector) { showToast('Enter collector name'); return; }
+  if (!skipPhotoMode && !photoDataUrl) { showToast('Take a photo first'); return; }
+
+  // Double-tap protection
+  confirmCooldown = true;
+  confirmBtn.disabled = true; confirmBtn.textContent = 'Processing...'; confirmBtn.classList.add('processing');
+
+  const now = new Date();
+  const date = now.toLocaleDateString('en-CA');
+  const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const timestamp = date + ' ' + time;
+  const weekEnding = sel[0].week || 'Unknown';
+
+  let stampedBase64 = '', filename = '';
+  if (photoDataUrl) {
+    stampedBase64 = await stampPhoto(photoDataUrl, collector, sel, timestamp);
+    const chqNums = sel.map(c => c.chqNo).join('_');
+    const collectorClean = collector.replace(/[^a-zA-Z0-9]/g, '_');
+    filename = weekEnding + '_' + collectorClean + '_' + chqNums + '_' + date + '_' + time.replace(':', '-') + '.jpg';
+  }
+
+  const pickupData = {
+    action: 'confirmPickup', collector, timestamp, weekEnding,
+    photoFilename: filename,
+    photoBase64: stampedBase64 ? stampedBase64.split(',')[1] : '',
+    cheques: sel.map(c => ({ uid: c.uid, sheetName: c.sheetName, rowIndex: c.rowIndex, sigCol: c.sigCol, chqNo: c.chqNo, name: c.lastName + ' ' + c.firstName, week: c.week, office: c.office }))
+  };
+
+  if (isOnline) {
+    const sigText = 'Collected by ' + collector + ' \u2014 ' + timestamp;
+    sel.forEach(c => { const m = allCheques.find(ch => ch.uid === c.uid); if (m) { m.hasSignature = true; m.signatureText = sigText; } });
+    try { cacheRecentData(); } catch(e) {}
+    playConfirmSound(); showToast('✅ ' + sel.length + ' cheque(s) confirmed');
+    addToHistory(collector, timestamp, sel, false);
+    api(pickupData).catch(() => { queueOffline(pickupData, collector, timestamp, sel); showToast('⚡ Server sync pending'); });
+  } else {
+    queueOffline(pickupData, collector, timestamp, sel);
+    playConfirmSound(); showToast('⚡ Queued offline');
+  }
+
+  // Reset
+  cart.clear(); selected.clear(); photoDataUrl = null; photoPreview.style.display = 'none';
+  collectorInput.value = ''; searchInput.value = '';
+  resultsSection.classList.add('hidden'); selectedBar.classList.add('hidden'); actionArea.classList.add('hidden');
+  searchResults = [];
+  confirmBtn.textContent = 'Confirm Pickup'; confirmBtn.classList.remove('processing');
+
+  // Cooldown
+  setTimeout(() => { confirmCooldown = false; updateConfirmBtn(); }, CONFIRM_COOLDOWN_MS);
+});
+
+// =============================================
+// PHOTO STAMP
+// =============================================
+function stampPhoto(dataUrl, collector, cheques, timestamp) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = $('stampCanvas');
+      const maxW = 1200; let w = img.width, h = img.height;
+      if (w > maxW) { h = h * maxW / w; w = maxW; }
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h);
+      const pad = 14, fs = Math.max(14, w * 0.025), lh = fs * 1.5;
+      const chqText = cheques.map(c => c.chqNo + ' ' + c.lastName + ' ' + c.firstName).join(' | ');
+      const lines = ['Collected by: ' + collector, timestamp, chqText];
+      const boxH = lines.length * lh + pad * 2, sy = h - boxH;
+      ctx.fillStyle = 'rgba(15,23,42,0.75)'; ctx.fillRect(0, sy, w, boxH);
+      ctx.fillStyle = '#fff'; ctx.font = '600 ' + fs + 'px Outfit,sans-serif';
+      lines.forEach((line, i) => ctx.fillText(line, pad, sy + pad + (i + 1) * lh - 4));
+      resolve(canvas.toDataURL('image/jpeg', 0.85));
+    };
+    img.src = dataUrl;
+  });
+}
+
+// =============================================
+// SOUND
+// =============================================
+function playConfirmSound() {
+  try {
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    [523, 659, 784].forEach((f, i) => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.12, ac.currentTime + i * 0.1);
+      g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + i * 0.1 + 0.25);
+      o.connect(g); g.connect(ac.destination);
+      o.start(ac.currentTime + i * 0.1); o.stop(ac.currentTime + i * 0.1 + 0.25);
+    });
+  } catch (e) {}
+}
+
+// =============================================
+// HISTORY
+// =============================================
+function addToHistory(collector, timestamp, cheques, offline) {
+  history.unshift({ collector, timestamp, offline, cheques: cheques.map(c => ({ chqNo: c.chqNo, name: c.lastName + ' ' + c.firstName, week: c.week, office: c.office })) });
+  saveSessionHistory(); renderHistory();
+}
+function renderHistory() {
+  if (history.length === 0) { historySection.classList.add('hidden'); return; }
+  historySection.classList.remove('hidden'); historyList.innerHTML = '';
+  history.forEach(h => {
+    const div = document.createElement('div'); div.className = 'history-item';
+    div.innerHTML = '<div class="hi-top"><span class="hi-collector">' + h.collector + '</span><span class="hi-time">' + h.timestamp + '</span></div><div class="hi-cheques">' + h.cheques.map(c => '<span>' + c.chqNo + '</span> ' + c.name).join(' · ') + '</div>' + (h.offline ? '<div class="hi-offline">⚡ Queued offline</div>' : '');
+    historyList.appendChild(div);
+  });
+}
+function saveSessionHistory() { try { localStorage.setItem('cheque_session_history', JSON.stringify(history)); } catch(e) {} }
+function loadSessionHistory() { try { const s = localStorage.getItem('cheque_session_history'); if (s) { history = JSON.parse(s); renderHistory(); } } catch(e) {} }
+
+// =============================================
+// OFFLINE QUEUE
+// =============================================
+function queueOffline(pickupData, collector, timestamp, cheques) { offlineQueue.push(pickupData); saveOfflineQueue(); addToHistory(collector, timestamp, cheques, true); updateOfflineBar(); }
+function saveOfflineQueue() { try { localStorage.setItem('cheque_offline_queue', JSON.stringify(offlineQueue)); } catch(e) {} }
+function loadOfflineQueue() { try { const s = localStorage.getItem('cheque_offline_queue'); if (s) offlineQueue = JSON.parse(s); updateOfflineBar(); } catch(e) {} }
+async function syncOfflineQueue() {
+  if (!isOnline || offlineQueue.length === 0) return;
+  updateOfflineBar(); let synced = 0;
+  for (let i = 0; i < offlineQueue.length; i++) {
+    try { await api(offlineQueue[0]); offlineQueue.shift(); saveOfflineQueue(); synced++; updateOfflineBar(); } catch (err) { break; }
+  }
+  if (synced > 0) { showToast('✅ Synced ' + synced + ' pickup(s)'); history.forEach(h => { if (h.offline) h.offline = false; }); saveSessionHistory(); renderHistory(); }
+  updateOfflineBar();
+}
+setInterval(() => { if (isOnline && offlineQueue.length > 0) syncOfflineQueue(); }, 30000);
+
+// =============================================
+// PULL TO REFRESH
+// =============================================
+(function initPTR() {
+  const ptr = $('ptrIndicator'), ptrText = $('ptrText');
+  let startY = 0, pulling = false, triggered = false;
+  const threshold = 80;
+
+  document.addEventListener('touchstart', e => {
+    if (window.scrollY > 5 || !pin) return;
+    startY = e.touches[0].clientY; pulling = true; triggered = false;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', e => {
+    if (!pulling) return;
+    const dy = e.touches[0].clientY - startY;
+    if (dy > 10 && window.scrollY <= 0) {
+      const progress = Math.min(dy / threshold, 1);
+      ptr.style.transform = 'translateX(-50%) translateY(' + (-60 + progress * 72) + 'px)';
+      ptr.classList.add('pulling'); ptr.classList.remove('refreshing');
+      ptrText.textContent = dy > threshold ? 'Release to refresh' : 'Pull to refresh';
+      triggered = dy > threshold;
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', () => {
+    if (!pulling) return;
+    pulling = false;
+    if (triggered && isOnline && !dataLoading) {
+      ptr.classList.add('refreshing'); ptr.classList.remove('pulling');
+      ptrText.textContent = 'Refreshing...';
+      ptr.style.transform = 'translateX(-50%) translateY(12px)';
+      refreshData().then(() => {
+        setTimeout(() => { ptr.classList.remove('refreshing'); ptr.style.transform = ''; }, 600);
+        showToast('✅ Data refreshed');
+      });
+    } else {
+      ptr.classList.remove('pulling'); ptr.style.transform = '';
+    }
+  });
+})();
+
+// =============================================
+// ADMIN UPLOAD
+// =============================================
+const adminModal = $('adminModal'), uploadZone = $('uploadZone'), payrollFileInput = $('payrollFileInput');
+const uploadPreview = $('uploadPreview'), modalUploadBtn = $('modalUploadBtn');
+const uploadProgress = $('uploadProgress'), uploadErrorDiv = $('uploadError'), uploadSuccessDiv = $('uploadSuccess');
+let parsedPayroll = null;
+
+$('adminBtn').addEventListener('click', () => { adminModal.classList.remove('hidden'); resetUploadModal(); });
+$('modalCloseBtn').addEventListener('click', () => adminModal.classList.add('hidden'));
+adminModal.addEventListener('click', e => { if (e.target === adminModal) adminModal.classList.add('hidden'); });
+uploadZone.addEventListener('click', () => payrollFileInput.click());
+payrollFileInput.addEventListener('change', e => { const f = e.target.files[0]; if (f) parsePayrollFile(f); e.target.value = ''; });
+
+function resetUploadModal() {
+  parsedPayroll = null;
+  uploadPreview.classList.add('hidden'); modalUploadBtn.classList.add('hidden');
+  uploadProgress.classList.add('hidden'); uploadErrorDiv.classList.add('hidden');
+  uploadSuccessDiv.classList.add('hidden'); uploadZone.classList.remove('hidden');
+}
+
+function parsePayrollFile(file) {
+  if (typeof XLSX === 'undefined') { uploadErrorDiv.textContent = 'Excel library loading — try again in a moment'; uploadErrorDiv.classList.remove('hidden'); return; }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+      let weekEnding = ''; const fm = file.name.match(/WE\d{4}/i); if (fm) weekEnding = fm[0].toUpperCase();
+      const sheets = []; let totalCheques = 0;
+      wb.SheetNames.forEach(sn => {
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: '' });
+        if (!weekEnding) for (let r = 0; r < Math.min(rows.length, 5); r++) { if (!rows[r]) continue; for (let c = 0; c < rows[r].length; c++) { const m = String(rows[r][c] || '').trim().match(/^WE\d{4}$/i); if (m) { weekEnding = m[0].toUpperCase(); break; } } if (weekEnding) break; }
+        let chq = 0; rows.forEach(row => { if (row) for (let c = 0; c < row.length; c++) if (String(row[c] || '').trim().toUpperCase() === 'CHQ') { chq++; break; } }); totalCheques += chq;
+        sheets.push({ name: sn, rows: rows.map(row => row.map(cell => { if (cell == null) return ''; if (cell instanceof Date) return cell.toISOString().split('T')[0]; if (typeof cell === 'object') return String(cell); return cell; })) });
+      });
+      if (!weekEnding) { weekEnding = (prompt('Week ending not found. Enter it (e.g. WE0214):') || '').toUpperCase().trim(); if (!weekEnding) { uploadErrorDiv.textContent = 'Week ending required'; uploadErrorDiv.classList.remove('hidden'); return; } }
+      parsedPayroll = { weekEnding, sheets, fileName: file.name };
+      uploadZone.classList.add('hidden'); uploadPreview.classList.remove('hidden'); modalUploadBtn.classList.remove('hidden'); modalUploadBtn.disabled = false;
+      $('upWeek').textContent = weekEnding; $('upOffices').textContent = sheets.map(s => s.name).join(', ');
+      $('upCount').textContent = sheets.length + ' tab' + (sheets.length !== 1 ? 's' : '') + ' · ~' + totalCheques + ' cheques';
+    } catch (err) { uploadErrorDiv.textContent = 'Error: ' + err.message; uploadErrorDiv.classList.remove('hidden'); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+modalUploadBtn.addEventListener('click', async () => {
+  if (!parsedPayroll) return;
+  modalUploadBtn.disabled = true; uploadProgress.classList.remove('hidden');
+  uploadProgress.textContent = 'Uploading ' + parsedPayroll.sheets.length + ' tab(s)...'; uploadErrorDiv.classList.add('hidden');
+  try {
+    const res = await api({ action: 'uploadPayroll', weekEnding: parsedPayroll.weekEnding, sheets: parsedPayroll.sheets });
+    uploadProgress.classList.add('hidden');
+    if (res.error) { uploadErrorDiv.textContent = res.error; uploadErrorDiv.classList.remove('hidden'); modalUploadBtn.disabled = false; }
+    else { uploadSuccessDiv.textContent = '✅ ' + res.message; uploadSuccessDiv.classList.remove('hidden'); modalUploadBtn.classList.add('hidden'); await loadAllData(); showToast('✅ ' + parsedPayroll.weekEnding + ' uploaded'); }
+  } catch (err) { uploadProgress.classList.add('hidden'); uploadErrorDiv.textContent = 'Failed: ' + err.message; uploadErrorDiv.classList.remove('hidden'); modalUploadBtn.disabled = false; }
+});
+
+// =============================================
+// TOAST
+// =============================================
+function showToast(msg) { toast.textContent = msg; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3000); }
+
+// =============================================
+// SHEETJS
+// =============================================
+(function() {
+  const K = 'xlsx_lib_0185', U = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  function exec(c) { try { const s = document.createElement('script'); s.textContent = c; document.body.appendChild(s); } catch(e) {} }
+  const cached = localStorage.getItem(K);
+  if (cached) { exec(cached); if (navigator.onLine) fetch(U).then(r => r.text()).then(t => { try { localStorage.setItem(K, t); } catch(e) {} }).catch(() => {}); }
+  else if (navigator.onLine) fetch(U).then(r => r.text()).then(t => { try { localStorage.setItem(K, t); } catch(e) {} exec(t); }).catch(() => {});
+})();
+
+// =============================================
+// JSPDF (for receipt export)
+// =============================================
+(function() {
+  const U = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js';
+  if (navigator.onLine) {
+    const s = document.createElement('script'); s.src = U; s.async = true; document.body.appendChild(s);
+  }
+})();
+</script>
+</body>
+</html>
