@@ -483,6 +483,27 @@ body {
 .btn-report-mh:active { transform:scale(.95); }
 .btn-report-mh svg { width:11px; height:11px; }
 
+/* ========== HOLD CHEQUES ========== */
+.btn-hold {
+  flex-shrink:0; display:inline-flex; align-items:center; gap:4px;
+  padding:3px 8px; border-radius:6px;
+  border:1px solid var(--border); background:var(--bg);
+  color:var(--text-tertiary); font-size:10px; font-weight:600;
+  font-family:var(--font); cursor:pointer; transition:var(--transition);
+  white-space:nowrap;
+}
+.btn-hold:hover { border-color:var(--yellow); color:var(--yellow); background:var(--yellow-bg); }
+.btn-hold:active { transform:scale(.95); }
+.btn-hold.active { border-color:var(--yellow); color:var(--yellow); background:var(--yellow-bg); }
+.cheque-row.held { border-left:3px solid var(--yellow); background:var(--yellow-bg); }
+.dark .cheque-row.held { background:var(--yellow-bg); }
+.hold-badge {
+  display:inline-flex; align-items:center; gap:5px; flex-wrap:wrap;
+  font-size:11px; font-weight:700; color:var(--yellow);
+  padding:2px 0; line-height:1.35;
+}
+.hold-badge .hold-by { font-weight:500; color:var(--text-tertiary); }
+
 /* ========== COMMENT MODAL ========== */
 .comment-modal .modal { max-width:400px; }
 .comment-modal .comment-name {
@@ -531,6 +552,10 @@ body {
 .welcome-date {
   font-size:13px; color:var(--text-tertiary); margin-top:6px; font-weight:400;
 }
+.welcome-sub {
+  font-size:14px; color:var(--text-secondary); margin-top:14px; line-height:1.5;
+}
+.welcome-sub strong { color:var(--accent-text); font-weight:600; }
 .welcome-hint {
   font-size:13px; color:var(--text-tertiary); margin-top:14px;
   display:flex; align-items:center; justify-content:center; gap:6px;
@@ -555,6 +580,24 @@ body {
 
 /* ========== POSTS / BULLETIN BOARD ========== */
 .posts-section { margin-top:24px; max-width:600px; margin-left:auto; margin-right:auto; }
+.staff-board-toggle {
+  width:100%; display:flex; align-items:center; gap:9px;
+  padding:12px 16px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); cursor:pointer;
+  font-family:var(--font); font-size:13px; font-weight:600;
+  color:var(--text-secondary); transition:var(--transition);
+}
+.staff-board-toggle:hover { background:var(--surface-hover); color:var(--text); border-color:var(--text-tertiary); }
+.staff-board-toggle:active { transform:scale(.99); }
+.staff-board-toggle .sbt-chev { margin-left:auto; transition:transform .2s ease; flex-shrink:0; }
+.staff-board-toggle.open .sbt-chev { transform:rotate(180deg); }
+.staff-board-toggle .pac-badge {
+  background:var(--red); color:#fff; font-size:10px; font-weight:700;
+  padding:2px 7px; border-radius:9999px; min-width:18px; text-align:center;
+  margin-left:2px;
+}
+.staff-board-body { margin-top:14px; animation:slideDown .25s cubic-bezier(.16,1,.3,1); }
 .posts-actions {
   display:flex; gap:8px; margin-bottom:16px;
 }
@@ -1125,6 +1168,7 @@ body {
 .cart-skipped-status { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
 .cart-skipped-status.collected { background: rgba(34,197,94,.12); color: #16a34a; }
 .cart-skipped-status.voided { background: rgba(239,68,68,.12); color: #ef4444; }
+.cart-skipped-status.missing { background: rgba(184,134,11,.12); color: var(--yellow); }
 
 /* ========== SHARE CART ========== */
 .btn-share-cart { display:inline-flex; align-items:center; gap:6px; background:transparent; color:var(--text-secondary); border:1.5px solid var(--border); border-radius:8px; padding:6px 12px; font-size:12px; font-weight:600; cursor:pointer; transition:border-color .15s, color .15s; white-space:nowrap; }
@@ -1439,10 +1483,10 @@ body {
     <h2>Apex Personnel</h2>
     <div class="sub">Cheque Distribution System</div>
     <div class="pin-input">
-      <input class="pin-digit" type="tel" maxlength="1" inputmode="numeric" autofocus>
-      <input class="pin-digit" type="tel" maxlength="1" inputmode="numeric">
-      <input class="pin-digit" type="tel" maxlength="1" inputmode="numeric">
-      <input class="pin-digit" type="tel" maxlength="1" inputmode="numeric">
+      <input class="pin-digit" type="password" maxlength="1" inputmode="numeric" autocomplete="off" autofocus>
+      <input class="pin-digit" type="password" maxlength="1" inputmode="numeric" autocomplete="off">
+      <input class="pin-digit" type="password" maxlength="1" inputmode="numeric" autocomplete="off">
+      <input class="pin-digit" type="password" maxlength="1" inputmode="numeric" autocomplete="off">
     </div>
     <div class="pin-error" id="pinError"></div>
     <button class="pin-btn" id="pinBtn" disabled>Unlock</button>
@@ -1526,13 +1570,22 @@ body {
       <div class="col-left">
         <div class="dashboard" id="dashboard">
           <div class="welcome">
-            <div class="welcome-greeting">Welcome back,</div>
-            <div class="welcome-name" id="welcomeName"></div>
+            <div class="welcome-greeting">Welcome to</div>
+            <div class="welcome-name">Apex Personnel — Cheque Pickup</div>
             <div class="welcome-date" id="welcomeDate"></div>
+            <div class="welcome-sub">Please have your <strong>full name</strong> or <strong>cheque number</strong> ready.</div>
             <div class="welcome-hint">Press <kbd>/</kbd> to search</div>
           </div>
-          <!-- Posts Section -->
+          <!-- Posts Section — collapsed behind Staff Board so collectors
+               don't see missing-hours reports (names, phones, missing pay) -->
           <div class="posts-section" id="postsSection">
+            <button class="staff-board-toggle" id="staffBoardToggle">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+              Staff Board
+              <span class="pac-badge hidden" id="staffBoardCount">0</span>
+              <svg class="sbt-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="staff-board-body hidden" id="staffBoardBody">
             <div class="posts-actions">
               <div class="posts-action-card" id="btnNewMissingHours">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -1551,6 +1604,7 @@ body {
               <button class="posts-filter-pill" data-filter="resolved">✓ Resolved <span class="pf-count" id="pfCountRes">0</span></button>
             </div>
             <div class="posts-list" id="postsList"></div>
+            </div><!-- /staffBoardBody -->
           </div>
         </div>
         <div class="results-section hidden" id="resultsSection">
@@ -1751,6 +1805,20 @@ body {
   </div>
 </div>
 
+<!-- HOLD MODAL -->
+<div class="modal-overlay comment-modal hidden" id="holdModal">
+  <div class="modal">
+    <h3>⏸ Hold Cheque</h3>
+    <div class="comment-name" id="holdChequeInfo"></div>
+    <textarea id="holdReasonInput" placeholder="Reason — e.g. transfer to Mississauga office, verify ID before release, employee will call back..."></textarea>
+    <div class="upload-error hidden" id="holdError"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button class="btn-modal btn-modal-secondary" id="holdCancelBtn">Cancel</button>
+      <button class="btn-modal btn-modal-primary" id="holdConfirmBtn" style="background:var(--yellow)">Place Hold</button>
+    </div>
+  </div>
+</div>
+
 <!-- POST FORM: MISSING HOURS -->
 <div class="post-form-overlay hidden" id="postFormMH">
   <div class="post-form-modal">
@@ -1841,6 +1909,20 @@ const AUTO_REFRESH_MS = 600000;   // 10 minutes
 const IDLE_TIMEOUT_MS = 900000;   // 15 minutes
 const MAX_CACHED_WEEKS = 4;
 const CONFIRM_COOLDOWN_MS = 3000; // Double-tap protection
+
+// =============================================
+// HELPERS
+// =============================================
+// FIX: Receipt IDs must be unguessable — getReceiptPublic is unauthenticated,
+// so a plain timestamp ID is enumerable. Append a random suffix.
+function genReceiptId(prefix) {
+  var r = '';
+  try {
+    var a = new Uint8Array(4); crypto.getRandomValues(a);
+    r = Array.from(a).map(function(b){ return ('0' + b.toString(16)).slice(-2); }).join('');
+  } catch(e) { r = Math.random().toString(36).slice(2, 10); }
+  return prefix + '-' + Date.now() + '-' + r;
+}
 
 // =============================================
 // STATE
@@ -1988,15 +2070,40 @@ function applyUserRole() {
   $('adminBtn').classList.toggle('hidden', currentUser.role !== 'admin');
   // Distributor name in confirm form
   $('distributorName').textContent = currentUser.name;
-  // Welcome dashboard
-  $('welcomeName').textContent = currentUser.name;
+  // Welcome dashboard (welcomeName element removed in collector-focused redesign)
+  var wn = $('welcomeName');
+  if (wn) wn.textContent = currentUser.name;
   const now = new Date();
   $('welcomeDate').textContent = now.toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
 }
 
+// Staff Board collapse (privacy: the homescreen faces collectors)
+function collapseStaffBoard() {
+  const body = $('staffBoardBody'), btn = $('staffBoardToggle');
+  if (body) body.classList.add('hidden');
+  if (btn) btn.classList.remove('open');
+}
+function toggleStaffBoard(forceOpen) {
+  const body = $('staffBoardBody'), btn = $('staffBoardToggle');
+  if (!body || !btn) return;
+  const open = forceOpen === true ? true : body.classList.contains('hidden');
+  body.classList.toggle('hidden', !open);
+  btn.classList.toggle('open', open);
+}
+$('staffBoardToggle').addEventListener('click', function() { toggleStaffBoard(); });
+
+let _dashWasHidden = false;
 function updateDashboard() {
   const hasSearch = searchInput.value.trim().length > 0;
   $('dashboard').classList.toggle('hidden', hasSearch);
+  if (hasSearch) {
+    _dashWasHidden = true;
+  } else if (_dashWasHidden) {
+    // Dashboard just reappeared (search cleared / pickup completed) —
+    // auto-collapse so the next collector at the counter can't read the board
+    _dashWasHidden = false;
+    collapseStaffBoard();
+  }
 }
 
 function doLogout() {
@@ -2012,11 +2119,19 @@ function doLogout() {
   loadedViews.clear();
   postsData = [];
   postsFilter = 'all';
+  // FIX: clear in-memory offline queue so the next user can't sync the previous
+  // user's queued pickups under their own PIN (persisted copy stays under the
+  // original PIN's localStorage key and syncs when that user logs back in)
+  offlineQueue = [];
+  updateOfflineBar();
+  hideQrPanel();
+  collapseStaffBoard();
   // Clear cached auth (keep theme + other prefs)
   sessionStorage.removeItem('cheque_pin');
   sessionStorage.removeItem('cheque_user');
   sessionStorage.removeItem('cheque_alldata');
   sessionStorage.removeItem('cheque_session_history');
+  sessionStorage.removeItem('cheque_receipts');
   // Reset UI
   mainScreen.classList.add('hidden');
   pinScreen.classList.remove('hidden');
@@ -2055,6 +2170,26 @@ function recordActivity() { lastActivity = Date.now(); }
 });
 
 function isIdle() { return Date.now() - lastActivity > IDLE_TIMEOUT_MS; }
+
+// FIX: idle lock was dead code — now enforced. Soft lock: returns to the PIN
+// screen but keeps cached data, cart, and session history so re-entering the
+// PIN unlocks instantly via the fast path.
+function lockApp() {
+  if (!pin) return;
+  pin = '';
+  collapseStaffBoard();
+  hideQrPanel();
+  closeMobileSheet();
+  $('mobileCartBar').classList.add('hidden');
+  document.body.classList.remove('cart-active');
+  mainScreen.classList.add('hidden');
+  pinScreen.classList.remove('hidden');
+  pinDigits.forEach(d => { d.value = ''; d.classList.remove('filled'); });
+  updatePinBtn();
+  pinDigits[0].focus();
+  showToast('🔒 Locked after inactivity');
+}
+setInterval(function() { if (pin && isIdle()) lockApp(); }, 30000);
 
 // =============================================
 // OFFLINE
@@ -2118,7 +2253,7 @@ document.addEventListener('keydown', e => {
     // Close modals first (highest priority)
     const modals = [
       $('postFormMH'), $('postFormBC'),
-      $('commentModal'), $('webcamModal'), $('adminModal')
+      $('commentModal'), $('webcamModal'), $('adminModal'), $('holdModal')
     ];
     for (const m of modals) {
       if (m && !m.classList.contains('hidden')) {
@@ -2190,9 +2325,12 @@ document.addEventListener('keydown', e => {
       break;
     case 'p': case 'P':
       e.preventDefault();
-      // Scroll to posts section if visible
+      // Expand + scroll to the staff board if the dashboard is visible
       var ps = $('postsSection');
-      if (ps && !ps.closest('.hidden')) ps.scrollIntoView({ behavior:'smooth', block:'start' });
+      if (ps && !ps.closest('.hidden')) {
+        toggleStaffBoard(true);
+        ps.scrollIntoView({ behavior:'smooth', block:'start' });
+      }
       break;
     case 'm': case 'M':
       e.preventDefault();
@@ -2335,6 +2473,20 @@ function postLoginSetup() {
 // DATA LOADING — On-demand pattern
 // =============================================
 
+// Shared office-access matcher — updateOfficeFilter and the post forms used to
+// implement two different substring rules, so a user's visible offices differed
+// between the filter dropdown and the post visibility chips
+function officeAllowedForUser(officeName) {
+  if (!currentUser) return true;
+  if (currentUser.allOffices || currentUser.role === 'admin') return true;
+  if (!currentUser.offices || currentUser.offices.length === 0) return true;
+  var oLower = String(officeName).toLowerCase();
+  return currentUser.offices.some(function(a) {
+    a = String(a).toLowerCase();
+    return oLower.indexOf(a) !== -1 || a.indexOf(oLower) !== -1;
+  });
+}
+
 // Helper: determine the best default office for this user on login
 function getAutoOffice() {
   if (!currentUser) return 'ALL';
@@ -2400,8 +2552,11 @@ async function loadInitialData() {
       if (autoOffice !== 'ALL') bgPayload.office = autoOffice;
       // Fire and forget — don't block UI
       api(bgPayload).then(bgRes => {
-        if (bgRes.cheques) {
-          allCheques = allCheques.concat(bgRes.cheques);
+        // FIX: skip if the user already loaded this week while the fetch was in
+        // flight (switching to it manually) — blind concat created duplicates
+        var alreadyLoaded = Array.from(loadedViews).some(function(k){ return k.indexOf(secondWeek + '|') === 0; });
+        if (bgRes.cheques && !alreadyLoaded) {
+          allCheques = allCheques.filter(c => c.week !== secondWeek).concat(bgRes.cheques);
           loadedViews.add(viewKey(secondWeek, autoOffice));
           lastDataTimestamp = bgRes.timestamp;
           cacheRecentData();
@@ -2470,6 +2625,20 @@ async function refreshCurrentView_() {
     }
   }
   cacheRecentData(); updateSyncStatus();
+  // FIX: reconcile the cart against fresh data — the Map used to hold stale
+  // object references after refresh (colleague-collected cheques stayed carted)
+  let cartRemoved = 0;
+  Array.from(cart.keys()).forEach(uid => {
+    const fresh = allCheques.find(c => c.uid === uid);
+    if (fresh) {
+      if (fresh.hasSignature) { cart.delete(uid); cartRemoved++; }
+      else cart.set(uid, fresh); // swap in the fresh object
+    }
+  });
+  if (cartRemoved > 0) {
+    showToast('ℹ️ ' + cartRemoved + ' cheque' + (cartRemoved !== 1 ? 's' : '') + ' removed from cart — already collected or voided');
+    renderCart();
+  }
   if (searchInput.value.trim().length >= 2) doSearch();
 }
 
@@ -2554,11 +2723,7 @@ function updateOfficeFilter() {
   // Skip filtering if user has client access (backend already filters properly)
   var hasClients = currentUser && currentUser.clients && currentUser.clients.length > 0;
   if (currentUser && !currentUser.allOffices && currentUser.offices.length > 0 && !hasClients) {
-    const allowed = currentUser.offices.map(o => o.toLowerCase());
-    offices = new Set(Array.from(offices).filter(o => {
-      var oLower = o.toLowerCase();
-      return allowed.some(a => oLower.indexOf(a) !== -1 || a.indexOf(oLower) !== -1);
-    }));
+    offices = new Set(Array.from(offices).filter(officeAllowedForUser));
   }
 
   // Preserve current selection — add it even if not in this week's data
@@ -2630,11 +2795,14 @@ function doSearch() {
 
   if (!allCheques.some(c => c.week === wf)) { doServerSearch(q, wf, of2); return; }
 
+  // FIX: guard every field — one numeric chqNo or null client from the backend
+  // used to throw on .toLowerCase() and kill search for every keystroke
+  const S = v => String(v == null ? '' : v).toLowerCase();
   searchResults = allCheques.filter(c => {
     if (c.week !== wf) return false;
     if (of2 !== 'ALL' && c.office !== of2) return false;
-    const full = (c.lastName + ' ' + c.firstName).toLowerCase();
-    return full.includes(q) || c.lastName.toLowerCase().includes(q) || c.firstName.toLowerCase().includes(q) || c.client.toLowerCase().includes(q) || c.chqNo.toLowerCase().includes(q) || (c.empNo && c.empNo.toLowerCase().includes(q)) || (c.jigId && c.jigId.toLowerCase().includes(q));
+    const full = (S(c.lastName) + ' ' + S(c.firstName));
+    return full.includes(q) || S(c.lastName).includes(q) || S(c.firstName).includes(q) || S(c.client).includes(q) || S(c.chqNo).includes(q) || (c.empNo && S(c.empNo).includes(q)) || (c.jigId && S(c.jigId).includes(q));
   });
   searchResults.sort((a, b) => {
     if (a.hasSignature !== b.hasSignature) return a.hasSignature ? 1 : -1;
@@ -2659,6 +2827,28 @@ const signedSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 function fmtHours(h) { if (!h) return ''; var n = parseFloat(h); return isNaN(n) ? '' : parseFloat(n.toFixed(2)); }
 
 const editSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+const pauseSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
+
+// =============================================
+// HOLD CHEQUES — encoded in the comment column so the existing
+// updateComment action syncs holds across all devices with no backend change.
+// Format: "[HOLD by Name YYYY-MM-DD] reason || any pre-existing comment"
+// =============================================
+const HOLD_RE = /^\[HOLD by ([^\]]*)\]\s*([\s\S]*)$/;
+function parseHold(comment) {
+  if (!comment) return null;
+  var m = String(comment).match(HOLD_RE);
+  if (!m) return null;
+  var body = m[2] || '', reason = body, rest = '';
+  var sep = body.indexOf('||');
+  if (sep !== -1) { reason = body.slice(0, sep); rest = body.slice(sep + 2); }
+  return { by: m[1].trim(), reason: reason.trim(), rest: rest.trim() };
+}
+function buildHoldComment(byWithDate, reason, rest) {
+  var s = '[HOLD by ' + byWithDate + ']' + (reason ? ' ' + reason : '');
+  if (rest) s += ' || ' + rest;
+  return s;
+}
 const clockSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
 
 function renderResults() {
@@ -2667,13 +2857,16 @@ function renderResults() {
   resultsSection.classList.remove('hidden');
 
   const uncollected = searchResults.filter(c => !c.hasSignature), collected = searchResults.filter(c => c.hasSignature);
+  const heldCount = uncollected.filter(c => parseHold(c.comment)).length;
   let ct = uncollected.length + ' available';
+  if (heldCount > 0) ct += ' · ' + heldCount + ' on hold';
   if (collected.length > 0) ct += ' · ' + collected.length + ' collected';
   resultCount.textContent = ct;
 
-  if (uncollected.length > 1) {
+  const selectable = uncollected.filter(c => !parseHold(c.comment));
+  if (selectable.length > 1) {
     selectAllBtn.classList.remove('hidden');
-    selectAllBtn.textContent = uncollected.every(c => cart.has(c.uid)) ? 'Deselect All' : 'Select All';
+    selectAllBtn.textContent = selectable.every(c => cart.has(c.uid)) ? 'Deselect All' : 'Select All';
   } else selectAllBtn.classList.add('hidden');
 
   if (searchResults.length === 0) { chequeList.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div>No cheques match "' + escapeHtml(q) + '"</div>'; renderCart(); return; }
@@ -2688,9 +2881,9 @@ function renderResults() {
       row.className = 'cheque-row signed';
       let collectedBy = '', collectedAt = '', receiptId = '';
       const isVoided = c.signatureText.indexOf('VOIDED by') === 0;
-      const ridMatch = c.signatureText.match(/\[((?:R|V)-\d+)\]/);
+      const ridMatch = c.signatureText.match(/\[((?:R|V)-[\w-]+)\]/);
       if (ridMatch) receiptId = ridMatch[1];
-      const sigClean = c.signatureText.replace(/\s*\[(?:R|V)-\d+\]/, '');
+      const sigClean = c.signatureText.replace(/\s*\[(?:R|V)-[\w-]+\]/, '');
 
       if (isVoided) {
         // Parse void format: "VOIDED by Name — timestamp"
@@ -2720,14 +2913,16 @@ function renderResults() {
       row.innerHTML = '<div class="cb" style="border-color:transparent"></div><div class="chq-info"><div class="chq-top"><span class="chq-num" style="opacity:.5">' + escapeHtml(c.chqNo) + '</span><span class="chq-name" style="opacity:.6">' + escapeHtml(c.lastName) + ' ' + escapeHtml(c.firstName) + '</span>' + (c.jigId ? '<span class="chq-jig" style="opacity:.6">' + escapeHtml(c.jigId) + '</span>' : '') + '</div><div class="chq-bottom"><span class="chq-client">' + escapeHtml(c.client) + '</span>' + (c.empNo ? '<span class="chq-detail emp-no">Emp ' + escapeHtml(c.empNo) + '</span>' : '') + (c.payRate ? '<span class="chq-detail">$' + c.payRate.toFixed(2) + '/hr</span>' : '') + (fmtHours(c.hours) ? '<span class="chq-detail">' + fmtHours(c.hours) + 'h</span>' : '') + (showOffice ? '<span class="tag tag-office">' + escapeHtml(c.office) + '</span>' : '') + '</div><div class="signed-badge">' + badgeContent + (collectedAt ? ' · ' + escapeHtml(collectedAt) : '') + receiptBtn + '</div>' + commentHtml + '</div><span class="chq-pay" style="opacity:.5">$' + c.netPay.toFixed(2) + '</span>';
     } else {
       const commentHtml = buildCommentRow(c, true);
-      row.className = 'cheque-row' + (cart.has(c.uid) ? ' selected' : '');
+      const hold = parseHold(c.comment);
+      row.className = 'cheque-row' + (cart.has(c.uid) ? ' selected' : '') + (hold ? ' held' : '');
       let detailTags = '<span class="chq-client">' + escapeHtml(c.client) + '</span>';
       if (c.empNo) detailTags += '<span class="chq-detail emp-no">Emp ' + escapeHtml(c.empNo) + '</span>';
       if (c.payRate) detailTags += '<span class="chq-detail">$' + c.payRate.toFixed(2) + '/hr</span>';
       if (c.hours) detailTags += '<span class="chq-detail">' + fmtHours(c.hours) + 'h</span>';
       if (showOffice) detailTags += '<span class="tag tag-office">' + escapeHtml(c.office) + '</span>';
-      row.innerHTML = '<div class="cb">' + checkSvg + '</div><div class="chq-info"><div class="chq-top"><span class="chq-num">' + escapeHtml(c.chqNo) + '</span><span class="chq-name">' + escapeHtml(c.lastName) + ' ' + escapeHtml(c.firstName) + '</span>' + (c.jigId ? '<span class="chq-jig">' + escapeHtml(c.jigId) + '</span>' : '') + '</div><div class="chq-bottom">' + detailTags + '</div>' + commentHtml + '</div><span class="chq-pay">$' + c.netPay.toFixed(2) + '</span>';
-      row.addEventListener('click', e => { if (e.target.closest('.btn-comment') || e.target.closest('.btn-report-mh')) return; toggleSelect(c.uid); });
+      const holdBadge = hold ? '<div class="hold-badge">⏸ ON HOLD' + (hold.reason ? ' — ' + escapeHtml(hold.reason) : '') + ' <span class="hold-by">' + escapeHtml(hold.by) + '</span></div>' : '';
+      row.innerHTML = '<div class="cb">' + checkSvg + '</div><div class="chq-info"><div class="chq-top"><span class="chq-num">' + escapeHtml(c.chqNo) + '</span><span class="chq-name">' + escapeHtml(c.lastName) + ' ' + escapeHtml(c.firstName) + '</span>' + (c.jigId ? '<span class="chq-jig">' + escapeHtml(c.jigId) + '</span>' : '') + '</div><div class="chq-bottom">' + detailTags + '</div>' + holdBadge + commentHtml + '</div><span class="chq-pay">$' + c.netPay.toFixed(2) + '</span>';
+      row.addEventListener('click', e => { if (e.target.closest('.btn-comment') || e.target.closest('.btn-report-mh') || e.target.closest('.btn-hold')) return; toggleSelect(c.uid); });
     }
     // Attach comment edit handler
     const commentBtn = row.querySelector('.btn-comment');
@@ -2738,6 +2933,9 @@ function renderResults() {
     // Attach report missing hours handler
     const reportBtn = row.querySelector('.btn-report-mh');
     if (reportBtn) reportBtn.addEventListener('click', e => { e.stopPropagation(); openMHFromCheque(c); });
+    // Attach hold/release handler
+    const holdBtnEl = row.querySelector('.btn-hold');
+    if (holdBtnEl) holdBtnEl.addEventListener('click', e => { e.stopPropagation(); toggleHold(c); });
     chequeList.appendChild(row);
   });
   renderCart(); updateConfirmBtn();
@@ -2749,8 +2947,12 @@ function buildCommentRow(c, showReport) {
     // No comment column — only show report button if requested
     return showReport ? '<div class="chq-comment-row">' + reportBtn + '</div>' : '';
   }
-  const hasComment = c.comment && c.comment.length > 0;
-  return '<div class="chq-comment-row"><span class="chq-comment-text' + (hasComment ? '' : ' empty') + '">' + (hasComment ? '💬 ' + escapeHtml(c.comment) : 'No comment') + '</span><button class="btn-comment" title="Edit comment">' + editSvg + '</button>' + reportBtn + '</div>';
+  const hold = showReport ? parseHold(c.comment) : null; // holds only apply to available cheques
+  const holdBtn = showReport ? '<button class="btn-hold' + (hold ? ' active' : '') + '" data-uid="' + c.uid + '" title="' + (hold ? 'Release hold' : 'Place this cheque on hold') + '">' + pauseSvg + (hold ? 'Release' : 'Hold') + '</button>' : '';
+  // When held, show the underlying comment (if any) — the hold itself renders as a badge
+  const displayComment = hold ? hold.rest : c.comment;
+  const hasComment = displayComment && displayComment.length > 0;
+  return '<div class="chq-comment-row"><span class="chq-comment-text' + (hasComment ? '' : ' empty') + '">' + (hasComment ? '💬 ' + escapeHtml(displayComment) : 'No comment') + '</span><button class="btn-comment" title="Edit comment">' + editSvg + '</button>' + holdBtn + reportBtn + '</div>';
 }
 
 function escapeHtml(str) {
@@ -2766,6 +2968,10 @@ function toggleSelect(uid) {
   } else {
     const cheque = searchResults.find(c => c.uid === uid) || allCheques.find(c => c.uid === uid);
     if (cheque && !cheque.hasSignature) {
+      const h = parseHold(cheque.comment);
+      if (h && !confirm('⏸ This cheque is ON HOLD' + (h.reason ? ':\n"' + h.reason + '"' : '') + '\n(placed by ' + h.by + ')\n\nAdd it to the cart anyway?')) {
+        return;
+      }
       cart.set(uid, cheque);
     }
   }
@@ -2773,7 +2979,9 @@ function toggleSelect(uid) {
 }
 
 selectAllBtn.addEventListener('click', () => {
-  const unc = searchResults.filter(c => !c.hasSignature);
+  // Held cheques are excluded from select-all; they can still be added
+  // individually (with a confirmation prompt)
+  const unc = searchResults.filter(c => !c.hasSignature && !parseHold(c.comment));
   const allSelected = unc.every(c => cart.has(c.uid));
   unc.forEach(c => {
     if (allSelected) { cart.delete(c.uid); }
@@ -2844,8 +3052,9 @@ async function applyLoadCart() {
   const chqNos = raw.split(',').map(s => s.trim()).filter(Boolean);
   if (chqNos.length === 0) return;
 
-  // Ensure the week is loaded — loadViewData skips if already cached
-  await loadViewData(week, officeFilter.value || 'ALL', false);
+  // FIX: load ALL offices for this week — using the recipient's current office
+  // filter meant shared cheques from a different office were silently dropped
+  await loadViewData(week, 'ALL', false);
 
   // Set week filter to match
   if (weekFilter.querySelector('option[value="' + CSS.escape(week) + '"]')) {
@@ -2858,9 +3067,12 @@ async function applyLoadCart() {
   const toLoad = [], skipped = [];
   chqNos.forEach(chqNo => {
     const cheque = allCheques.find(ch => String(ch.chqNo) === chqNo && ch.week === week);
-    if (!cheque || !cheque.hasSignature) {
-      if (cheque) toLoad.push(cheque);
-      // silently skip truly missing ones — shouldn't happen in practice
+    if (!cheque) {
+      // FIX: surface not-found cheques instead of silently dropping them
+      // (happens when the recipient's PIN lacks access to that office)
+      skipped.push({ chqNo, name: 'Not found — outside your office access?', status: 'missing' });
+    } else if (!cheque.hasSignature) {
+      toLoad.push(cheque);
     } else {
       const isVoided = cheque.signatureText && cheque.signatureText.indexOf('VOIDED by') === 0;
       skipped.push({ chqNo, name: cheque.lastName + ' ' + cheque.firstName, status: isVoided ? 'voided' : 'collected' });
@@ -2988,7 +3200,7 @@ function renderCart() {
   selectedChips.innerHTML = '';
   sel.forEach(c => {
     const chip = document.createElement('span'); chip.className = 'selected-chip';
-    let chipDetails = '<span class="chip-chq">' + c.chqNo + '</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">' + c.lastName + ' ' + c.firstName + '</span><span class="tag tag-week" style="font-size:9px;padding:2px 6px">' + c.week + '</span>';
+    let chipDetails = '<span class="chip-chq">' + escapeHtml(c.chqNo) + '</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">' + escapeHtml(c.lastName) + ' ' + escapeHtml(c.firstName) + '</span><span class="tag tag-week" style="font-size:9px;padding:2px 6px">' + escapeHtml(c.week) + '</span>';
     if (c.payRate) chipDetails += '<span class="chip-detail">$' + c.payRate.toFixed(2) + '/hr</span>';
     if (c.hours) chipDetails += '<span class="chip-detail">' + fmtHours(c.hours) + 'h</span>';
     chipDetails += '<span class="chip-pay">$' + c.netPay.toFixed(2) + '</span>';
@@ -3028,7 +3240,10 @@ function openCommentEditor(cheque) {
   editingCheque = cheque;
   commentModal.classList.remove('hidden');
   $('commentChequeInfo').innerHTML = '<strong>' + escapeHtml(cheque.chqNo) + '</strong> — ' + escapeHtml(cheque.lastName) + ' ' + escapeHtml(cheque.firstName) + ' · ' + escapeHtml(cheque.week) + ' / ' + escapeHtml(cheque.office);
-  commentTextarea.value = cheque.comment || '';
+  // If the cheque is on hold, edit only the underlying comment — the hold
+  // marker is managed by the Hold/Release buttons and re-wrapped on save
+  const editHold = parseHold(cheque.comment);
+  commentTextarea.value = editHold ? editHold.rest : (cheque.comment || '');
   commentSaving.classList.add('hidden');
   commentError.classList.add('hidden');
   commentTextarea.focus();
@@ -3040,7 +3255,10 @@ commentModal.addEventListener('click', e => { if (e.target === commentModal) clo
 
 $('commentSaveBtn').addEventListener('click', async () => {
   if (!editingCheque) return;
-  const newComment = commentTextarea.value.trim();
+  let newComment = commentTextarea.value.trim();
+  // Re-wrap an active hold so editing the comment can't accidentally clear it
+  const activeHold = parseHold(editingCheque.comment);
+  if (activeHold) newComment = buildHoldComment(activeHold.by, activeHold.reason, newComment);
   commentSaving.classList.remove('hidden'); commentError.classList.add('hidden');
   $('commentSaveBtn').disabled = true;
 
@@ -3065,6 +3283,66 @@ $('commentSaveBtn').addEventListener('click', async () => {
   } catch (err) { commentError.textContent = 'Failed: ' + err.message; commentError.classList.remove('hidden'); }
   commentSaving.classList.add('hidden'); $('commentSaveBtn').disabled = false;
 });
+
+// =============================================
+// HOLD MODAL + TOGGLE
+// =============================================
+let holdingCheque = null;
+const holdModal = $('holdModal'), holdReasonInput = $('holdReasonInput'), holdError = $('holdError');
+
+function toggleHold(cheque) {
+  if (cheque.commentCol === undefined || cheque.commentCol < 0) { showToast('This sheet has no comment column — holds unavailable'); return; }
+  const hold = parseHold(cheque.comment);
+  if (hold) {
+    // Release
+    if (!confirm('Release the hold on cheque ' + cheque.chqNo + '?' + (hold.reason ? '\nHold reason: ' + hold.reason : ''))) return;
+    saveHoldComment(cheque, hold.rest || '', 'released');
+  } else {
+    holdingCheque = cheque;
+    holdModal.classList.remove('hidden');
+    $('holdChequeInfo').innerHTML = '<strong>' + escapeHtml(cheque.chqNo) + '</strong> — ' + escapeHtml(cheque.lastName) + ' ' + escapeHtml(cheque.firstName) + ' · ' + escapeHtml(cheque.week) + ' / ' + escapeHtml(cheque.office);
+    holdReasonInput.value = '';
+    holdError.classList.add('hidden');
+    setTimeout(function() { holdReasonInput.focus(); }, 50);
+  }
+}
+
+function closeHoldModal() { holdModal.classList.add('hidden'); holdingCheque = null; }
+$('holdCancelBtn').addEventListener('click', closeHoldModal);
+holdModal.addEventListener('click', e => { if (e.target === holdModal) closeHoldModal(); });
+
+$('holdConfirmBtn').addEventListener('click', function() {
+  if (!holdingCheque) return;
+  const reason = holdReasonInput.value.trim();
+  if (!reason) { holdError.textContent = 'Please enter a reason for the hold'; holdError.classList.remove('hidden'); return; }
+  const byWithDate = (currentUser ? currentUser.name : 'Staff') + ' ' + new Date().toLocaleDateString('en-CA');
+  // Preserve any existing plain comment after the hold marker
+  const existing = holdingCheque.comment || '';
+  const newComment = buildHoldComment(byWithDate, reason, existing);
+  const c = holdingCheque;
+  closeHoldModal();
+  saveHoldComment(c, newComment, 'held');
+});
+
+async function saveHoldComment(cheque, newComment, mode) {
+  try {
+    const res = await api({
+      action: 'updateComment',
+      sheetName: cheque.sheetName,
+      rowIndex: cheque.rowIndex,
+      comment: newComment
+    });
+    if (res && res.error) { showToast('❌ ' + res.error); return; }
+    // Update all local references (results, allCheques, cart)
+    cheque.comment = newComment;
+    const local = allCheques.find(x => x.uid === cheque.uid);
+    if (local) local.comment = newComment;
+    if (cart.has(cheque.uid)) cart.get(cheque.uid).comment = newComment;
+    try { cacheRecentData(); } catch(e) {}
+    showToast(mode === 'held' ? '⏸ Cheque placed on hold' : '▶️ Hold released');
+    renderResults();
+  } catch (err) { showToast('Failed to update hold: ' + err.message); }
+}
 
 // =============================================
 // RECEIPT SYSTEM
@@ -3122,7 +3400,9 @@ async function viewReceipt(receiptId) {
   }
 
   // Write receipt into the already-open window
-  const html = buildReceiptHtml(receipt);
+  // FIX: no auto-print — "view receipt" used to immediately open the print
+  // dialog and close the tab after; now there's a Print button instead
+  const html = buildReceiptHtml(receipt, false);
   w.document.open(); w.document.write(html); w.document.close();
 }
 
@@ -3138,14 +3418,14 @@ function exportReceipt() {
     timestamp: dateStr,
     isVoid: voidMode,
     cheques: sel.map(c => ({ chqNo: c.chqNo, name: c.lastName + ' ' + c.firstName, client: c.client || '', week: c.week || '', payRate: c.payRate || 0, hours: c.hours || 0, empNo: c.empNo || '', jigId: c.jigId || '', netPay: c.netPay }))
-  });
+  }, true); // staff export → auto-print
   const w = window.open('', '_blank');
   if (w) { w.document.write(html); w.document.close(); }
   else { showToast('Pop-up blocked — allow pop-ups and try again'); }
 }
 
 // -- Shared receipt HTML builder --
-function buildReceiptHtml(data) {
+function buildReceiptHtml(data, autoPrint) {
   const cheques = (data.cheques || []).sort((a, b) => (parseInt(a.chqNo) || 0) - (parseInt(b.chqNo) || 0));
   const total = cheques.reduce((s, c) => s + (c.netPay || 0), 0);
   const collector = data.collector || '';
@@ -3225,9 +3505,13 @@ function buildReceiptHtml(data) {
       '<div class="sig-line"><span class="sig-label">Date / Time:</span>' + (timestamp ? '<span class="sig-filled">' + escapeHtml(timestamp) + '</span>' : '<span class="sig-blank"></span>') + '</div>' +
     '</div>' +
     (receiptId ? '<div class="rid">Ref: ' + escapeHtml(receiptId) + '</div>' : '') +
-    (shareUrl ? '<div class="share-bar"><button class="btn-share" onclick="(function(){var u=\''+shareUrl+'\';if(navigator.share){navigator.share({title:\'Cheque Receipt — Apex Personnel\',url:u})}else{navigator.clipboard.writeText(u).then(function(){var b=document.querySelector(\'.btn-share\');if(b){var t=b.textContent;b.textContent=\'✅ Copied!\';setTimeout(function(){b.textContent=t;},2000)}})}})()" ><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg> Share Receipt</button></div>' : '') +
+    (function(){
+      var shareBtn = shareUrl ? '<button class="btn-share" onclick="(function(){var u=\''+shareUrl+'\';if(navigator.share){navigator.share({title:\'Cheque Receipt — Apex Personnel\',url:u})}else{navigator.clipboard.writeText(u).then(function(){var b=document.querySelector(\'.btn-share\');if(b){var t=b.textContent;b.textContent=\'✅ Copied!\';setTimeout(function(){b.textContent=t;},2000)}})}})()" ><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg> Share Receipt</button>' : '';
+      var printBtn = autoPrint ? '' : '<button class="btn-share" style="margin-left:8px;background:#c87b35" onclick="window.print()">🖨 Print</button>';
+      return (shareBtn || printBtn) ? '<div class="share-bar">' + shareBtn + printBtn + '</div>' : '';
+    })() +
     '<div class="footer">Apex Personnel — ' + title + '</div>' +
-    '<script>window.onafterprint=function(){window.close()};window.print()<\/script>' +
+    (autoPrint ? '<script>window.onafterprint=function(){window.close()};window.print()<\/script>' : '') +
   '</body></html>';
 
   return html;
@@ -3328,6 +3612,16 @@ confirmBtn.addEventListener('click', async () => {
   const sel = getSelectedCheques();
   if (sel.length === 0) return;
 
+  // FIX: shareCart blocks mixed weeks but confirm didn't — weekEnding, the photo
+  // filename, and the receipt header were labelled with the first cheque's week
+  const selWeeks = new Set(sel.map(c => c.week));
+  if (selWeeks.size > 1) {
+    showToast('⚠️ Cart has cheques from ' + selWeeks.size + ' different weeks — confirm one week at a time');
+    return;
+  }
+
+  let keepInCart = null; // uids of failed-write cheques to retain after reset
+
   if (voidMode) {
     // === VOID FLOW ===
     if (!photoDataUrl) { showToast('Photo is required for voiding'); return; }
@@ -3340,7 +3634,7 @@ confirmBtn.addEventListener('click', async () => {
     const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     const timestamp = date + ' ' + time;
     const weekEnding = sel[0].week || 'Unknown';
-    const receiptId = 'V-' + now.getTime();
+    const receiptId = genReceiptId('V');
     const voidedBy = currentUser ? currentUser.name : '';
 
     let stampedBase64 = '', filename = '';
@@ -3350,7 +3644,7 @@ confirmBtn.addEventListener('click', async () => {
     }
 
     const voidData = {
-      action: 'voidCheques', timestamp, weekEnding, receiptId,
+      action: 'voidCheques', pin: pin, voidedBy: voidedBy, timestamp, weekEnding, receiptId,
       photoFilename: filename,
       photoBase64: stampedBase64 ? stampedBase64.split(',')[1] : '',
       cheques: sel.map(c => ({ uid: c.uid, sheetName: c.sheetName, rowIndex: c.rowIndex, chqNo: c.chqNo, name: c.lastName + ' ' + c.firstName, week: c.week, office: c.office, client: c.client || '', payRate: c.payRate || 0, hours: c.hours || 0, empNo: c.empNo || '', jigId: c.jigId || '', netPay: c.netPay }))
@@ -3365,28 +3659,44 @@ confirmBtn.addEventListener('click', async () => {
     if (isOnline) {
       try {
         const res = await api(voidData);
+        // FIX: Apps Script always returns HTTP 200, so {error:...} used to fall
+        // through to the success path and show "voided" for cheques never touched.
+        if (res && res.error) {
+          showToast('❌ ' + res.error);
+          confirmBtn.textContent = 'Void Cheque(s)'; confirmBtn.classList.remove('processing');
+          confirmCooldown = false; updateConfirmBtn();
+          return; // keep cart + photo intact for retry
+        }
+        if (!res || !Array.isArray(res.results)) {
+          showToast('⚠️ Unexpected server response — refresh and verify before retrying');
+          confirmBtn.textContent = 'Void Cheque(s)'; confirmBtn.classList.remove('processing');
+          confirmCooldown = false; updateConfirmBtn();
+          refreshData();
+          return;
+        }
         const sigText = 'VOIDED by ' + voidedBy + ' \u2014 ' + timestamp + ' [' + receiptId + ']';
         const confirmedUids = new Set();
-        if (res.results) {
-          res.results.forEach(r => {
-            if (r.ok) {
-              confirmedUids.add(r.uid);
-              const m = allCheques.find(ch => ch.uid === r.uid);
-              if (m) { m.hasSignature = true; m.signatureText = sigText; }
-            }
-          });
-        }
+        const failedUids = [];
+        res.results.forEach(r => {
+          if (r.ok) {
+            confirmedUids.add(r.uid);
+            const m = allCheques.find(ch => ch.uid === r.uid);
+            if (m) { m.hasSignature = true; m.signatureText = sigText; }
+          } else if (r.uid) failedUids.push(r.uid);
+        });
         try { cacheRecentData(); } catch(e) {}
         const alreadyList = res.alreadyCollected || [];
-        if (alreadyList.length > 0 && confirmedUids.size > 0) {
-          showToast('🚫 ' + confirmedUids.size + ' voided · ' + alreadyList.length + ' already processed');
-        } else if (alreadyList.length > 0 && confirmedUids.size === 0) {
-          showToast('⚠️ All ' + alreadyList.length + ' cheque(s) were already processed');
-        } else {
-          showToast('🚫 ' + sel.length + ' cheque(s) voided');
+        const alreadyUids = new Set(alreadyList.map(a => (a && a.uid) ? a.uid : a));
+        keepInCart = new Set(failedUids.filter(u => !alreadyUids.has(u)));
+        let msg = '🚫 ' + confirmedUids.size + ' voided';
+        if (alreadyList.length > 0) msg += ' · ' + alreadyList.length + ' already processed';
+        if (keepInCart.size > 0) msg += ' · ' + keepInCart.size + ' failed (kept in cart — refresh & retry)';
+        if (confirmedUids.size === 0 && keepInCart.size === 0 && alreadyList.length > 0) msg = '⚠️ All ' + alreadyList.length + ' cheque(s) were already processed';
+        showToast(msg);
+        if (confirmedUids.size > 0) {
+          playConfirmSound();
+          addToHistory('', timestamp, sel.filter(c => confirmedUids.has(c.uid)), false, true, voidedBy);
         }
-        playConfirmSound();
-        addToHistory('', timestamp, sel, false, true, voidedBy);
       } catch (err) {
         queueOffline(voidData, '', timestamp, sel);
         playConfirmSound();
@@ -3411,7 +3721,7 @@ confirmBtn.addEventListener('click', async () => {
     const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     const timestamp = date + ' ' + time;
     const weekEnding = sel[0].week || 'Unknown';
-    const receiptId = 'R-' + now.getTime();
+    const receiptId = genReceiptId('R');
     const distributor = currentUser ? currentUser.name : '';
 
     let stampedBase64 = '', filename = '';
@@ -3422,7 +3732,7 @@ confirmBtn.addEventListener('click', async () => {
     }
 
     const pickupData = {
-      action: 'confirmPickup', collector, timestamp, weekEnding, receiptId,
+      action: 'confirmPickup', pin: pin, distributor: distributor, collector, timestamp, weekEnding, receiptId,
       photoFilename: filename,
       photoBase64: stampedBase64 ? stampedBase64.split(',')[1] : '',
       cheques: sel.map(c => ({ uid: c.uid, sheetName: c.sheetName, rowIndex: c.rowIndex, chqNo: c.chqNo, name: c.lastName + ' ' + c.firstName, week: c.week, office: c.office, client: c.client || '', payRate: c.payRate || 0, hours: c.hours || 0, empNo: c.empNo || '', jigId: c.jigId || '', netPay: c.netPay }))
@@ -3436,32 +3746,49 @@ confirmBtn.addEventListener('click', async () => {
     if (isOnline) {
       try {
         const res = await api(pickupData);
+        // FIX: Apps Script always returns HTTP 200, so {error:...} used to fall
+        // through to the success path — showing "confirmed", clearing the cart,
+        // and displaying a QR for a receipt that was never written.
+        if (res && res.error) {
+          showToast('❌ ' + res.error);
+          confirmBtn.textContent = 'Confirm Pickup'; confirmBtn.classList.remove('processing');
+          confirmCooldown = false; updateConfirmBtn();
+          return; // keep cart, collector, and photo intact for retry
+        }
+        if (!res || !Array.isArray(res.results)) {
+          showToast('⚠️ Unexpected server response — refresh and verify before retrying');
+          confirmBtn.textContent = 'Confirm Pickup'; confirmBtn.classList.remove('processing');
+          confirmCooldown = false; updateConfirmBtn();
+          refreshData();
+          return;
+        }
         const sigParts = [];
         if (distributor) sigParts.push('Distributed by ' + distributor);
         if (collector) sigParts.push('Collected by ' + collector);
         const sigText = sigParts.join(' | ') + ' \u2014 ' + timestamp + ' [' + receiptId + ']';
         const confirmedUids = new Set();
-        if (res.results) {
-          res.results.forEach(r => {
-            if (r.ok) {
-              confirmedUids.add(r.uid);
-              const m = allCheques.find(ch => ch.uid === r.uid);
-              if (m) { m.hasSignature = true; m.signatureText = sigText; }
-            }
-          });
-        }
+        const failedUids = [];
+        res.results.forEach(r => {
+          if (r.ok) {
+            confirmedUids.add(r.uid);
+            const m = allCheques.find(ch => ch.uid === r.uid);
+            if (m) { m.hasSignature = true; m.signatureText = sigText; }
+          } else if (r.uid) failedUids.push(r.uid);
+        });
         try { cacheRecentData(); } catch(e) {}
         const alreadyList = res.alreadyCollected || [];
-        if (alreadyList.length > 0 && confirmedUids.size > 0) {
-          showToast('✅ ' + confirmedUids.size + ' confirmed · ' + alreadyList.length + ' already collected');
-        } else if (alreadyList.length > 0 && confirmedUids.size === 0) {
-          showToast('⚠️ All ' + alreadyList.length + ' cheque(s) were already collected');
-        } else {
-          showToast('✅ ' + sel.length + ' cheque(s) confirmed');
+        const alreadyUids = new Set(alreadyList.map(a => (a && a.uid) ? a.uid : a));
+        keepInCart = new Set(failedUids.filter(u => !alreadyUids.has(u)));
+        let msg = '✅ ' + confirmedUids.size + ' confirmed';
+        if (alreadyList.length > 0) msg += ' · ' + alreadyList.length + ' already collected';
+        if (keepInCart.size > 0) msg += ' · ' + keepInCart.size + ' failed (kept in cart — refresh & retry)';
+        if (confirmedUids.size === 0 && keepInCart.size === 0 && alreadyList.length > 0) msg = '⚠️ All ' + alreadyList.length + ' cheque(s) were already collected';
+        showToast(msg);
+        if (confirmedUids.size > 0) {
+          playConfirmSound();
+          addToHistory(collector, timestamp, sel.filter(c => confirmedUids.has(c.uid)), false, false, '');
+          showQrPanel(receiptId); // QR only when at least one cheque was actually confirmed
         }
-        playConfirmSound();
-        addToHistory(collector, timestamp, sel, false, false, '');
-        showQrPanel(receiptId); // Show QR after successful online confirmation
       } catch (err) {
         queueOffline(pickupData, collector, timestamp, sel);
         playConfirmSound();
@@ -3473,8 +3800,13 @@ confirmBtn.addEventListener('click', async () => {
     }
   }
 
-  // Reset UI
-  cart.clear(); photoDataUrl = null; photoPreview.style.display = 'none';
+  // Reset UI — keep failed-write cheques in the cart so staff can retry them
+  if (keepInCart && keepInCart.size > 0) {
+    Array.from(cart.keys()).forEach(k => { if (!keepInCart.has(k)) cart.delete(k); });
+  } else {
+    cart.clear();
+  }
+  photoDataUrl = null; photoPreview.style.display = 'none';
   collectorInput.value = ''; searchInput.value = '';
   $('searchClear').classList.add('hidden');
   resultsSection.classList.add('hidden'); selectedBar.classList.add('hidden'); actionArea.classList.add('hidden');
@@ -3490,6 +3822,7 @@ confirmBtn.addEventListener('click', async () => {
   updateMobileCartBar();
   updateDashboard();
   confirmBtn.textContent = 'Confirm Pickup'; confirmBtn.classList.remove('processing');
+  renderCart(); // re-shows the cart panel if failed cheques were kept
 
   // Cooldown
   setTimeout(() => { confirmCooldown = false; updateConfirmBtn(); }, CONFIRM_COOLDOWN_MS);
@@ -3520,7 +3853,7 @@ function stampPhoto(dataUrl, collector, cheques, timestamp, isVoid, receiptId) {
       if (receiptId) lines.push('Ref: ' + receiptId);
       const boxH = lines.length * lh + pad * 2, sy = h - boxH;
       ctx.fillStyle = isVoid ? 'rgba(153,27,27,0.82)' : 'rgba(15,23,42,0.75)'; ctx.fillRect(0, sy, w, boxH);
-      ctx.fillStyle = '#fff'; ctx.font = '600 ' + fs + 'px Outfit,sans-serif';
+      ctx.fillStyle = '#fff'; ctx.font = '600 ' + fs + 'px "DM Sans",Arial,sans-serif';
       lines.forEach((line, i) => ctx.fillText(line, pad, sy + pad + (i + 1) * lh - 4));
       resolve(canvas.toDataURL('image/jpeg', 0.85));
     };
@@ -3585,12 +3918,25 @@ function queueOffline(pickupData, collector, timestamp, cheques) {
   updateOfflineBar();
 }
 function offlineQueueKey() { return 'cheque_offline_queue_' + (pin || 'anon'); }
-function saveOfflineQueue() { try { localStorage.setItem(offlineQueueKey(), JSON.stringify(offlineQueue)); } catch(e) {} }
+function saveOfflineQueue() {
+  try {
+    localStorage.setItem(offlineQueueKey(), JSON.stringify(offlineQueue));
+    window._queueSaveFailed = false;
+  } catch(e) {
+    // FIX: quota failures were silently swallowed — queued pickups (with photos)
+    // would vanish on reload with no warning. Warn loudly instead.
+    if (!window._queueSaveFailed) {
+      window._queueSaveFailed = true;
+      showToast('⚠️ Device storage is full — keep this tab open until back online or queued pickups will be lost');
+    }
+  }
+}
 function loadOfflineQueue() { try { const s = localStorage.getItem(offlineQueueKey()); if (s) offlineQueue = JSON.parse(s); updateOfflineBar(); } catch(e) {} }
 async function syncOfflineQueue() {
   if (!isOnline || offlineQueue.length === 0) return;
   updateOfflineBar(); let synced = 0;
-  for (let i = 0; i < offlineQueue.length; i++) {
+  // FIX: was a for-loop that shifted while iterating and only drained ~half the queue per pass
+  while (offlineQueue.length > 0) {
     try { await api(offlineQueue[0]); offlineQueue.shift(); saveOfflineQueue(); synced++; updateOfflineBar(); } catch (err) { break; }
   }
   if (synced > 0) { showToast('✅ Synced ' + synced + ' pickup(s)'); sessionHistory.forEach(h => { if (h.offline) h.offline = false; }); saveSessionHistory(); renderHistory(); }
@@ -3800,6 +4146,13 @@ function renderPosts() {
   var badge = $('missingHoursBadge');
   if (countUnresolved > 0) { badge.textContent = countUnresolved; badge.classList.remove('hidden'); }
   else { badge.classList.add('hidden'); }
+  // Staff Board toggle badge: total active posts (count only — no content leaks)
+  var sbCount = $('staffBoardCount');
+  if (sbCount) {
+    var active = countMH + countBC;
+    if (active > 0) { sbCount.textContent = active; sbCount.classList.remove('hidden'); }
+    else { sbCount.classList.add('hidden'); }
+  }
 
   // Apply filter
   var filtered = postsData.filter(function(p) {
@@ -3865,7 +4218,9 @@ function renderPosts() {
     }
 
     // Actions
-    var isOwn = String(p.authorPIN) === myPIN;
+    // FIX (with Code.gs change): prefer a server-computed isOwn flag; the PIN
+    // comparison remains only as a fallback until the backend stops sending PINs
+    var isOwn = p.isOwn === true || (p.authorPIN != null && String(p.authorPIN) === myPIN);
     var isAdmin = currentUser && currentUser.role === 'admin';
     html += '<div class="post-card-actions">';
     if (p.type === 'missing_hours' && !p.resolved) {
@@ -3887,7 +4242,7 @@ function renderPosts() {
         comments.length + ' comment' + (comments.length !== 1 ? 's' : '') + '</button>';
       html += '<div class="post-comments-list" data-comments-list="' + p.id + '">';
       comments.forEach(function(c) {
-        var canDel = String(c.authorPIN) === myPIN || isAdmin;
+        var canDel = c.isOwn === true || (c.authorPIN != null && String(c.authorPIN) === myPIN) || isAdmin;
         html += '<div class="pc-item"><div class="pc-avatar" style="background:' + getPostAvatarColor(c.author) + '">' + getPostInitials(c.author) + '</div>' +
           '<div class="pc-body"><div class="pc-bubble"><span class="pc-author">' + escapeHtml(c.author) + '</span>' +
           '<span class="pc-text">' + escapeHtml(c.text) + '</span></div>' +
@@ -3927,7 +4282,9 @@ function renderPosts() {
   list.querySelectorAll('.pc-input').forEach(function(input) {
     input.addEventListener('keydown', function(e) {
       if (e.key === 'Enter' && input.value.trim()) {
-        addPostComment(input.dataset.commentInput, input.value.trim());
+        var t = input.value.trim();
+        input.value = ''; // FIX: input text used to survive the re-render after sending
+        addPostComment(input.dataset.commentInput, t);
       }
     });
   });
@@ -3948,7 +4305,11 @@ function renderPosts() {
     else if (action === 'delete') deletePost(postId);
     else if (action === 'addComment') {
       var input = list.querySelector('[data-comment-input="' + CSS.escape(postId) + '"]');
-      if (input && input.value.trim()) addPostComment(postId, input.value.trim());
+      if (input && input.value.trim()) {
+        var t = input.value.trim();
+        input.value = '';
+        addPostComment(postId, t);
+      }
     }
     else if (action === 'deleteComment') deletePostComment(postId, btn.dataset.commentId);
   });
@@ -3978,10 +4339,7 @@ function populatePostFormOffices(containerId, defaultOffice) {
   Object.values(weeksData).forEach(function(arr) { arr.forEach(function(o) { offices.add(o); }); });
   // Filter by user's offices if not admin/allOffices
   if (currentUser && !currentUser.allOffices && currentUser.role !== 'admin' && currentUser.offices.length > 0) {
-    var allowed = currentUser.offices.map(function(o) { return o.toLowerCase(); });
-    offices = new Set(Array.from(offices).filter(function(o) {
-      return allowed.some(function(a) { return o.toLowerCase().indexOf(a) !== -1; });
-    }));
+    offices = new Set(Array.from(offices).filter(officeAllowedForUser));
   }
 
   var allNames = ['All Offices'].concat(Array.from(offices).sort());
@@ -4148,7 +4506,8 @@ $('pfBCSubmit').addEventListener('click', async function() {
 async function resolvePost(postId) {
   if (!confirm('Mark this post as resolved?')) return;
   try {
-    await api({ action: 'resolvePost', postId: postId });
+    var res = await api({ action: 'resolvePost', postId: postId });
+    if (res && res.error) { showToast(res.error); return; }
     showToast('✅ Post resolved');
     await loadPosts();
   } catch(e) { showToast('Failed to resolve post'); }
@@ -4165,38 +4524,28 @@ async function deletePost(postId) {
 }
 
 async function addPostComment(postId, text) {
+  // FIX: no more optimistic insert with a fabricated client-side ID — the fake
+  // ID broke delete-after-add, and server errors still showed the comment
   try {
-    await api({ action: 'addPostComment', postId: postId, text: text });
-    // Update locally for instant feedback
-    var post = postsData.find(function(p) { return p.id === postId; });
-    if (post) {
-      post.comments.push({
-        id: 'C-' + Date.now(),
-        author: currentUser ? currentUser.name : '?',
-        authorPIN: pin,
-        text: text,
-        timestamp: new Date().toISOString()
-      });
-    }
-    renderPosts();
+    var res = await api({ action: 'addPostComment', postId: postId, text: text });
+    if (res && res.error) { showToast(res.error); return; }
+    await loadPosts();
   } catch(e) { showToast('Failed to add comment'); }
 }
 
 async function deletePostComment(postId, commentId) {
   try {
     var res = await api({ action: 'deletePostComment', postId: postId, commentId: commentId });
-    if (res.error) { showToast(res.error); return; }
-    // Update locally
-    var post = postsData.find(function(p) { return p.id === postId; });
-    if (post) { post.comments = post.comments.filter(function(c) { return c.id !== commentId; }); }
-    renderPosts();
+    if (res && res.error) { showToast(res.error); return; }
+    await loadPosts();
   } catch(e) { showToast('Failed to delete comment'); }
 }
 
 // =============================================
 // TOAST
 // =============================================
-function showToast(msg) { toast.textContent = msg; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3000); }
+let _toastTimer = null;
+function showToast(msg) { toast.textContent = msg; toast.classList.add('show'); clearTimeout(_toastTimer); _toastTimer = setTimeout(() => toast.classList.remove('show'), 3500); }
 
 // =============================================
 // QR SUCCESS PANEL
@@ -4281,7 +4630,9 @@ const _origDoLogout = doLogout;
     }
 
     // Receipt data ready — replace page with full receipt HTML
-    const html = buildReceiptHtml(data);
+    // FIX: no auto-print — employees scanning the QR got an instant print
+    // dialog on their phone, and dismissing it tried to close the tab
+    const html = buildReceiptHtml(data, false);
     document.open(); document.write(html); document.close();
 
   } catch(err) {
