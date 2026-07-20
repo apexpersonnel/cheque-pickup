@@ -3612,13 +3612,12 @@ confirmBtn.addEventListener('click', async () => {
   const sel = getSelectedCheques();
   if (sel.length === 0) return;
 
-  // FIX: shareCart blocks mixed weeks but confirm didn't — weekEnding, the photo
-  // filename, and the receipt header were labelled with the first cheque's week
-  const selWeeks = new Set(sel.map(c => c.week));
-  if (selWeeks.size > 1) {
-    showToast('⚠️ Cart has cheques from ' + selWeeks.size + ' different weeks — confirm one week at a time');
-    return;
-  }
+  // Multi-week pickups are supported: the batch label joins every week in the
+  // cart (e.g. "WE0207+WE0214") so the receipt header, _Receipts row, photo
+  // filename, and Drive photo folder all describe the batch truthfully.
+  // Receipt line items always carry each cheque's own week regardless.
+  const selWeeks = Array.from(new Set(sel.map(c => c.week || 'Unknown'))).sort();
+  const batchWeekLabel = selWeeks.join('+');
 
   let keepInCart = null; // uids of failed-write cheques to retain after reset
 
@@ -3633,7 +3632,7 @@ confirmBtn.addEventListener('click', async () => {
     const date = now.toLocaleDateString('en-CA');
     const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     const timestamp = date + ' ' + time;
-    const weekEnding = sel[0].week || 'Unknown';
+    const weekEnding = batchWeekLabel;
     const receiptId = genReceiptId('V');
     const voidedBy = currentUser ? currentUser.name : '';
 
@@ -3720,7 +3719,7 @@ confirmBtn.addEventListener('click', async () => {
     const date = now.toLocaleDateString('en-CA');
     const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     const timestamp = date + ' ' + time;
-    const weekEnding = sel[0].week || 'Unknown';
+    const weekEnding = batchWeekLabel;
     const receiptId = genReceiptId('R');
     const distributor = currentUser ? currentUser.name : '';
 
