@@ -3011,20 +3011,24 @@ function shareCart() {
   const sel = getSelectedCheques();
   if (sel.length === 0) return;
 
-  // All cheques must be from the same week for a clean shared link
-  const weeks = [...new Set(sel.map(c => c.week))];
-  if (weeks.length > 1) {
-    showToast('⚠️ All cheques must be from the same week to share');
-    return;
+  const weeks = [...new Set(sel.map(c => c.week))].sort();
+  let url;
+  if (weeks.length === 1) {
+    // Single week keeps the legacy link format — devices still running an
+    // older cached version of the app can open these
+    const chqNos = sel.map(c => c.chqNo).join(',');
+    url = window.location.origin + window.location.pathname + '?loadcart=' + encodeURIComponent(chqNos) + '&week=' + encodeURIComponent(weeks[0]);
+  } else {
+    // Multi-week: week-tagged pairs (WE0207:123,WE0214:200). Older cached
+    // clients ignore the unknown param and just open the app normally.
+    const pairs = sel.map(c => c.week + ':' + c.chqNo).join(',');
+    url = window.location.origin + window.location.pathname + '?sharecart=' + encodeURIComponent(pairs);
   }
-
-  const chqNos = sel.map(c => c.chqNo).join(',');
-  const url = window.location.origin + window.location.pathname + '?loadcart=' + encodeURIComponent(chqNos) + '&week=' + encodeURIComponent(weeks[0]);
 
   if (navigator.share) {
     navigator.share({
       title: 'Apex Personnel — Cart (' + sel.length + ' cheques)',
-      text: sel.length + ' cheque(s) ready for pickup — ' + weeks[0],
+      text: sel.length + ' cheque(s) ready for pickup — ' + weeks.join(' + '),
       url
     }).catch(() => {});
   } else {
@@ -3042,40 +3046,53 @@ function shareCart() {
 // =============================================
 async function applyLoadCart() {
   const params = new URLSearchParams(window.location.search);
-  const raw = params.get('loadcart');
+  const raw = params.get('loadcart');       // legacy: chqNos + single ?week=
   const week = params.get('week');
-  if (!raw || !week) return;
+  const rawMulti = params.get('sharecart'); // new: WE0207:123,WE0214:200
+  if (!rawMulti && (!raw || !week)) return;
 
   // Clean URL immediately so refresh doesn't re-trigger
   history.replaceState(null, '', window.location.pathname);
 
-  const chqNos = raw.split(',').map(s => s.trim()).filter(Boolean);
-  if (chqNos.length === 0) return;
+  // Normalize both link formats into {week, chqNo} pairs
+  let pairs = [];
+  if (rawMulti) {
+    pairs = rawMulti.split(',').map(s => s.trim()).filter(Boolean).map(s => {
+      const i = s.indexOf(':');
+      return i > 0 ? { week: s.slice(0, i), chqNo: s.slice(i + 1) } : null;
+    }).filter(Boolean);
+  } else {
+    pairs = raw.split(',').map(s => s.trim()).filter(Boolean).map(chqNo => ({ week: week, chqNo: chqNo }));
+  }
+  if (pairs.length === 0) return;
 
-  // FIX: load ALL offices for this week — using the recipient's current office
-  // filter meant shared cheques from a different office were silently dropped
-  await loadViewData(week, 'ALL', false);
+  // Load ALL offices for every week referenced in the link
+  const weeksNeeded = Array.from(new Set(pairs.map(p => p.week)));
+  for (const w of weeksNeeded) {
+    await loadViewData(w, 'ALL', false);
+  }
 
-  // Set week filter to match
-  if (weekFilter.querySelector('option[value="' + CSS.escape(week) + '"]')) {
-    weekFilter.value = week;
-    updateOfficeFilter();
-    renderResults();
+  // Point the week filter at the first shared week that exists in the dropdown
+  for (const w of weeksNeeded) {
+    if (weekFilter.querySelector('option[value="' + CSS.escape(w) + '"]')) {
+      weekFilter.value = w;
+      updateOfficeFilter();
+      renderResults();
+      break;
+    }
   }
 
   // Categorise each cheque
   const toLoad = [], skipped = [];
-  chqNos.forEach(chqNo => {
-    const cheque = allCheques.find(ch => String(ch.chqNo) === chqNo && ch.week === week);
+  pairs.forEach(pr => {
+    const cheque = allCheques.find(ch => String(ch.chqNo) === pr.chqNo && ch.week === pr.week);
     if (!cheque) {
-      // FIX: surface not-found cheques instead of silently dropping them
-      // (happens when the recipient's PIN lacks access to that office)
-      skipped.push({ chqNo, name: 'Not found — outside your office access?', status: 'missing' });
+      skipped.push({ chqNo: pr.chqNo, name: 'Not found in ' + pr.week + ' — outside your office access?', status: 'missing' });
     } else if (!cheque.hasSignature) {
       toLoad.push(cheque);
     } else {
       const isVoided = cheque.signatureText && cheque.signatureText.indexOf('VOIDED by') === 0;
-      skipped.push({ chqNo, name: cheque.lastName + ' ' + cheque.firstName, status: isVoided ? 'voided' : 'collected' });
+      skipped.push({ chqNo: pr.chqNo, name: cheque.lastName + ' ' + cheque.firstName, status: isVoided ? 'voided' : 'collected' });
     }
   });
 
@@ -3092,7 +3109,7 @@ async function applyLoadCart() {
   // Show modal listing skipped cheques before committing
   const sub = $('cartSkippedSub');
   const list = $('cartSkippedList');
-  sub.textContent = toLoad.length + ' of ' + chqNos.length + ' cheque' + (chqNos.length !== 1 ? 's' : '') + ' will be loaded into your cart.';
+  sub.textContent = toLoad.length + ' of ' + pairs.length + ' cheque' + (pairs.length !== 1 ? 's' : '') + ' will be loaded into your cart.';
   list.innerHTML = skipped.map(s =>
     '<div class="cart-skipped-row">' +
       '<span class="cart-skipped-chq">#' + escapeHtml(s.chqNo) + '</span>' +
