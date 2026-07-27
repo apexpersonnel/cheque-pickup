@@ -1946,6 +1946,35 @@ let lastActivity = Date.now();
 let confirmCooldown = false;
 let currentUser = null; // { name, role, offices, allOffices, clients }
 let loadedViews = new Set(); // tracks loaded 'week|office' combos (e.g. 'WE0221|Cambridge', 'WE0221|ALL')
+// FIX: loadedViews was a permanent "already have it" flag with no expiry, and it
+// was persisted across sessions. On a counter tablet left open all day, switching
+// back to a week loaded that morning did NO fetch — so cheques collected by other
+// offices since then still rendered as available with no badge and no hold marker,
+// and staff physically handed them over before the confirm came back "already
+// collected". AUTO_REFRESH_MS was declared but referenced nowhere in the file.
+// Views now carry a load time and go stale; restored views start stale by design.
+let viewLoadedAt = new Map();
+function markViewLoaded(key) { loadedViews.add(key); viewLoadedAt.set(key, Date.now()); }
+
+// FIX: when a payroll tab's header row can't be parsed, the backend used to
+// return an empty cheque list with no error — the office still appeared in the
+// dropdown and every search said "No cheques match", indistinguishable from an
+// empty week. It now returns warnings; show them once per distinct problem so a
+// renamed column is diagnosed as a renamed column, not as a flaky search.
+let _shownSheetWarnings = new Set();
+function reportSheetWarnings(warnings) {
+  if (!warnings || !warnings.length) return;
+  warnings.forEach(w => {
+    if (_shownSheetWarnings.has(w)) return;
+    _shownSheetWarnings.add(w);
+    console.warn('[cheque] sheet problem:', w);
+    showToast('⚠️ ' + w);
+  });
+}
+function isViewFresh(key) {
+  const t = viewLoadedAt.get(key);
+  return t !== undefined && (Date.now() - t) < AUTO_REFRESH_MS;
+}
 let postsData = [];            // all visible posts
 let postsFilter = 'all';       // current filter: all | missing_hours | broadcast | resolved
 let postsLoading = false;
@@ -2116,7 +2145,7 @@ function doLogout() {
   photoDataUrl = null;
   skipPhotoMode = false;
   voidMode = false;
-  loadedViews.clear();
+  loadedViews.clear(); viewLoadedAt.clear();
   postsData = [];
   postsFilter = 'all';
   // FIX: clear in-memory offline queue so the next user can't sync the previous
@@ -2225,6 +2254,19 @@ function updateSyncStatus() {
   syncDot.className = ago < 660 ? 'sync-dot' : 'sync-dot stale';
 }
 setInterval(updateSyncStatus, 30000);
+
+// FIX: AUTO_REFRESH_MS existed but nothing ever used it — the only refresh
+// triggers were login, the manual button, pull-to-refresh and tab focus. A
+// tablet sitting on the counter with the tab open and visible could show
+// hours-old data indefinitely. Refresh the current view on a timer, skipping
+// idle sessions, in-flight loads, and anything mid-transaction.
+setInterval(() => {
+  if (!pin || !isOnline || dataLoading) return;
+  if (document.hidden) return;          // visibilitychange handles the wake-up
+  if (isIdle()) return;                 // nobody is standing there
+  if (cart.size > 0) return;            // don't move data under an open handover
+  refreshData();
+}, AUTO_REFRESH_MS);
 
 // Tap sync status to manually refresh
 $('syncStatus').addEventListener('click', doManualRefresh);
@@ -2451,7 +2493,7 @@ function enterMainScreen(cachedDataStr) {
     weekOrder = d.weekOrder || Object.keys(weeksData);
     allCheques = d.cheques || [];
     lastDataTimestamp = d.timestamp;
-    loadedViews.clear();
+    loadedViews.clear(); viewLoadedAt.clear();
     (d.loadedViews || []).forEach(k => loadedViews.add(k));
     populateFilters(); updateSyncStatus();
   } catch(e) {}
@@ -2510,9 +2552,10 @@ async function loadInitialData() {
   try {
     // Step 1: Get week/office listing (instant — name scan only)
     const weeksRes = await api({ action: 'getWeeks' });
+    if (weeksRes && weeksRes.error) { showToast('⚠️ ' + weeksRes.error); dataLoading = false; return; }
     weeksData = weeksRes.weeks || {};
     weekOrder = weeksRes.weekOrder || Object.keys(weeksData);
-    loadedViews.clear();
+    loadedViews.clear(); viewLoadedAt.clear();
     allCheques = [];
 
     if (weekOrder.length === 0) {
@@ -2540,7 +2583,7 @@ async function loadInitialData() {
     const res = await api(payload);
     if (res.cheques) {
       allCheques = res.cheques;
-      loadedViews.add(viewKey(latestWeek, autoOffice));
+      markViewLoaded(viewKey(latestWeek, autoOffice));
       lastDataTimestamp = res.timestamp;
     }
     cacheRecentData(); updateSyncStatus();
@@ -2557,7 +2600,7 @@ async function loadInitialData() {
         var alreadyLoaded = Array.from(loadedViews).some(function(k){ return k.indexOf(secondWeek + '|') === 0; });
         if (bgRes.cheques && !alreadyLoaded) {
           allCheques = allCheques.filter(c => c.week !== secondWeek).concat(bgRes.cheques);
-          loadedViews.add(viewKey(secondWeek, autoOffice));
+          markViewLoaded(viewKey(secondWeek, autoOffice));
           lastDataTimestamp = bgRes.timestamp;
           cacheRecentData();
         }
@@ -2574,16 +2617,35 @@ async function loadViewData(week, office, force) {
   if (!week) return;
   const key = viewKey(week, office || 'ALL');
   // If we already loaded ALL offices for this week, a specific office is implicitly cached
-  const implicitlyLoaded = (office && office !== 'ALL') && loadedViews.has(viewKey(week, 'ALL'));
-  if (!force && (loadedViews.has(key) || implicitlyLoaded)) return; // Already cached in allCheques
+  const allKey = viewKey(week, 'ALL');
+  const implicitlyLoaded = (office && office !== 'ALL') && loadedViews.has(allKey) && isViewFresh(allKey);
+  if (!force && ((loadedViews.has(key) && isViewFresh(key)) || implicitlyLoaded)) return; // cached AND still fresh
 
-  if (dataLoading) return;
+  // FIX: this used to `if (dataLoading) return;` — silently, without loading and
+  // without recording the view. The caller then ran doSearch() anyway, whose
+  // server-fallback test is "is ANY cheque for this week in memory", which does
+  // not notice that the selected OFFICE is missing. Changing office during a
+  // background refresh therefore produced "No cheques match" for cheques that
+  // exist. Wait for the in-flight load instead of dropping this one.
+  for (let waited = 0; dataLoading && waited < 12000; waited += 150) {
+    await new Promise(r => setTimeout(r, 150));
+  }
+  if (dataLoading) { showToast('⚠️ Still loading — try that again in a moment'); return; }
   dataLoading = true;
   syncText.textContent = 'Loading...';
   try {
     const payload = { action: 'getWeekData', week: week };
     if (office && office !== 'ALL') payload.office = office;
     const res = await api(payload);
+    if (res && res.error) {
+      // FIX: read paths used `res.X || default`, so a server error rendered as an
+      // empty week with no message — during a lockout the app looked fine but
+      // empty, and staff told people their cheque was not there.
+      showToast('⚠️ ' + res.error);
+      updateSyncStatus();
+      return;
+    }
+    reportSheetWarnings(res && res.warnings);
     if (res.cheques) {
       if (office && office !== 'ALL') {
         // Specific office: strip only this week+office combo, then add fresh data
@@ -2592,12 +2654,16 @@ async function loadViewData(week, office, force) {
         // All offices: strip entire week to avoid duplicates with previously loaded specific offices
         allCheques = allCheques.filter(c => c.week !== week).concat(res.cheques);
       }
-      loadedViews.add(key);
+      markViewLoaded(key);
       lastDataTimestamp = res.timestamp;
       cacheRecentData(); updateSyncStatus();
     }
   } catch (err) { showToast('Could not load data'); updateSyncStatus(); }
-  dataLoading = false;
+  finally {
+    // MUST be a finally: the error branch above returns early, and without this
+    // dataLoading would stay true forever, wedging every subsequent load.
+    dataLoading = false;
+  }
 }
 
 // Shared helper: re-verify user + fetch current view's data
@@ -2614,31 +2680,60 @@ async function refreshCurrentView_() {
     const payload = { action: 'getWeekData', week: selectedWeek };
     if (selectedOffice && selectedOffice !== 'ALL') payload.office = selectedOffice;
     const res = await api(payload);
+    if (res && res.error) { showToast('⚠️ ' + res.error); updateSyncStatus(); return; }
+    reportSheetWarnings(res && res.warnings);
     if (res.cheques) {
       if (selectedOffice && selectedOffice !== 'ALL') {
         allCheques = allCheques.filter(c => !(c.week === selectedWeek && c.office === selectedOffice)).concat(res.cheques);
       } else {
         allCheques = allCheques.filter(c => c.week !== selectedWeek).concat(res.cheques);
       }
-      loadedViews.add(viewKey(selectedWeek, selectedOffice));
+      markViewLoaded(viewKey(selectedWeek, selectedOffice));
       lastDataTimestamp = res.timestamp;
     }
   }
   cacheRecentData(); updateSyncStatus();
   // FIX: reconcile the cart against fresh data — the Map used to hold stale
   // object references after refresh (colleague-collected cheques stayed carted)
-  let cartRemoved = 0;
+  // FIX: uid is POSITIONAL — week + '_' + office + '_' + rowIndex — so it is not
+  // a stable identity. If a row was inserted or the tab was sorted in the
+  // spreadsheet, the same uid now resolves to a DIFFERENT employee, and this
+  // loop happily swapped that stranger's cheque into the cart. renderCart() was
+  // only called on the removal branch, so the screen kept showing the original
+  // name: staff confirmed a handover believing it was someone else's cheque, and
+  // the server could not catch it because the swapped payload was internally
+  // consistent. Verify the cheque number before trusting a uid match.
+  let cartRemoved = 0, cartMismatched = 0;
   Array.from(cart.keys()).forEach(uid => {
+    const cached = cart.get(uid);
     const fresh = allCheques.find(c => c.uid === uid);
-    if (fresh) {
-      if (fresh.hasSignature) { cart.delete(uid); cartRemoved++; }
-      else cart.set(uid, fresh); // swap in the fresh object
+    if (!fresh) return; // not in the current view — leave it alone
+
+    if (cached && String(cached.chqNo) !== String(fresh.chqNo)) {
+      // The row moved underneath us. Try to re-find the real cheque by number
+      // within the same week, and fall back to dropping it rather than guessing.
+      const relocated = allCheques.find(c =>
+        String(c.chqNo) === String(cached.chqNo) && c.week === cached.week && !c.hasSignature);
+      cart.delete(uid);
+      if (relocated) cart.set(relocated.uid, relocated);
+      else cartMismatched++;
+      return;
     }
+
+    if (fresh.hasSignature) { cart.delete(uid); cartRemoved++; }
+    else cart.set(uid, fresh); // swap in the fresh object
   });
+
   if (cartRemoved > 0) {
     showToast('ℹ️ ' + cartRemoved + ' cheque' + (cartRemoved !== 1 ? 's' : '') + ' removed from cart — already collected or voided');
-    renderCart();
   }
+  if (cartMismatched > 0) {
+    showToast('⚠️ ' + cartMismatched + ' cheque' + (cartMismatched !== 1 ? 's were' : ' was') + ' removed — the payroll sheet changed. Search again before handing over.');
+  }
+  // FIX: always re-render. This used to be inside `if (cartRemoved > 0)`, so the
+  // swap branch mutated the cart without ever updating what staff could see.
+  renderResults();
+  renderCart();
   if (searchInput.value.trim().length >= 2) doSearch();
 }
 
@@ -2813,7 +2908,11 @@ function doSearch() {
 
 async function doServerSearch(query, week, office) {
   searchLoading.classList.add('show');
-  try { const res = await api({ action: 'search', query, week, office }); searchResults = res.results || []; renderResults(); }
+  try {
+    const res = await api({ action: 'search', query, week, office });
+    if (res && res.error) { showToast('⚠️ ' + res.error); searchLoading.classList.remove('show'); return; }
+    searchResults = res.results || []; renderResults();
+  }
   catch (err) { chequeList.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div>Could not load — check connection</div>'; resultsSection.classList.remove('hidden'); }
   searchLoading.classList.remove('show');
 }
@@ -3284,6 +3383,10 @@ $('commentSaveBtn').addEventListener('click', async () => {
       action: 'updateComment',
       sheetName: editingCheque.sheetName,
       rowIndex: editingCheque.rowIndex,
+      // FIX: rowIndex is positional and captured at search time. Sending the
+      // cheque number lets the server refuse the write if the row has moved,
+      // instead of silently commenting on (or holding) a different employee.
+      chqNo: editingCheque.chqNo,
       comment: newComment
     });
     if (res.error) { commentError.textContent = res.error; commentError.classList.remove('hidden'); }
@@ -3347,6 +3450,7 @@ async function saveHoldComment(cheque, newComment, mode) {
       action: 'updateComment',
       sheetName: cheque.sheetName,
       rowIndex: cheque.rowIndex,
+      chqNo: cheque.chqNo, // see note at the other updateComment call site
       comment: newComment
     });
     if (res && res.error) { showToast('❌ ' + res.error); return; }
@@ -3448,7 +3552,14 @@ function buildReceiptHtml(data, autoPrint) {
   const collector = data.collector || '';
   const distributor = data.distributor || '';
   const timestamp = data.timestamp || '';
-  const receiptId = data.receiptId || '';
+  // FIX: receiptId is client-supplied and stored verbatim by the backend, and this
+  // HTML is written with document.write() into the app's own origin — so an
+  // attacker-chosen id containing </title><script>... executed with full origin
+  // privileges for anyone opening the receipt link (which needs no PIN). Nothing
+  // downstream may interpolate the raw value. Constrain it to the shape our own
+  // generator produces and escape it at every sink.
+  const rawReceiptId = String(data.receiptId || '');
+  const receiptId = /^[RV]-\d{10,16}(-[0-9a-zA-Z]{1,16})?$/.test(rawReceiptId) ? rawReceiptId : '';
   const shareUrl = receiptId ? 'https://apexpersonnel.github.io/cheque-pickup?receipt=' + encodeURIComponent(receiptId) : '';
   const isVoid = data.isVoid || (receiptId && receiptId.startsWith('V-'));
 
@@ -3464,7 +3575,7 @@ function buildReceiptHtml(data, autoPrint) {
   const voidBanner = isVoid ? '.void-banner{background:#dc2626;color:#fff;text-align:center;padding:8px;font-size:14px;font-weight:700;letter-spacing:1px;margin-bottom:10px;border-radius:4px}' : '';
   const voidBannerHtml = isVoid ? '<div class="void-banner">⛔ VOIDED</div>' : '';
 
-  const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + title + (receiptId ? '_' + receiptId : '') + '_' + cheques.length + 'chq</title><style>' +
+  const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + title + (receiptId ? '_' + escapeHtml(receiptId) : '') + '_' + cheques.length + 'chq</title><style>' +
     '@page{size:letter;margin:16mm 14mm}' +
     '*{margin:0;padding:0;box-sizing:border-box}' +
     'body{font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;font-size:11px;line-height:1.4}' +
@@ -3523,11 +3634,25 @@ function buildReceiptHtml(data, autoPrint) {
     '</div>' +
     (receiptId ? '<div class="rid">Ref: ' + escapeHtml(receiptId) + '</div>' : '') +
     (function(){
-      var shareBtn = shareUrl ? '<button class="btn-share" onclick="(function(){var u=\''+shareUrl+'\';if(navigator.share){navigator.share({title:\'Cheque Receipt — Apex Personnel\',url:u})}else{navigator.clipboard.writeText(u).then(function(){var b=document.querySelector(\'.btn-share\');if(b){var t=b.textContent;b.textContent=\'✅ Copied!\';setTimeout(function(){b.textContent=t;},2000)}})}})()" ><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg> Share Receipt</button>' : '';
-      var printBtn = autoPrint ? '' : '<button class="btn-share" style="margin-left:8px;background:#c87b35" onclick="window.print()">🖨 Print</button>';
+      // FIX: the share URL used to be concatenated into an inline onclick handler.
+      // encodeURIComponent does NOT escape an apostrophe, so a receipt id
+      // containing one broke out of the JS string literal and ran as code. The URL
+      // now travels in an escaped data attribute and is bound by a listener below.
+      var shareBtn = shareUrl ? '<button class="btn-share" data-share-url="' + escapeHtml(shareUrl) + '"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg> Share Receipt</button>' : '';
+      var printBtn = autoPrint ? '' : '<button class="btn-share" data-print="1" style="margin-left:8px;background:#c87b35">🖨 Print</button>';
       return (shareBtn || printBtn) ? '<div class="share-bar">' + shareBtn + printBtn + '</div>' : '';
     })() +
     '<div class="footer">Apex Personnel — ' + title + '</div>' +
+    // Listener-based handlers replace the old inline onclick attributes.
+    '<script>(function(){' +
+      'var s=document.querySelector(".btn-share[data-share-url]");' +
+      'if(s){s.addEventListener("click",function(){var u=s.getAttribute("data-share-url");' +
+        'if(navigator.share){navigator.share({title:"Cheque Receipt — Apex Personnel",url:u}).catch(function(){});}' +
+        'else if(navigator.clipboard){navigator.clipboard.writeText(u).then(function(){var t=s.textContent;s.textContent="✅ Copied!";setTimeout(function(){s.textContent=t;},2000);}).catch(function(){});}' +
+      '});}' +
+      'var p=document.querySelector(".btn-share[data-print]");' +
+      'if(p){p.addEventListener("click",function(){window.print();});}' +
+    '})();<\/script>' +
     (autoPrint ? '<script>window.onafterprint=function(){window.close()};window.print()<\/script>' : '') +
   '</body></html>';
 
@@ -3712,6 +3837,7 @@ confirmBtn.addEventListener('click', async () => {
         if (confirmedUids.size > 0) {
           playConfirmSound();
           addToHistory('', timestamp, sel.filter(c => confirmedUids.has(c.uid)), false, true, voidedBy);
+          reportPostConfirmProblems(res, !!photoDataUrl);
         }
       } catch (err) {
         queueOffline(voidData, '', timestamp, sel);
@@ -3754,10 +3880,15 @@ confirmBtn.addEventListener('click', async () => {
       cheques: sel.map(c => ({ uid: c.uid, sheetName: c.sheetName, rowIndex: c.rowIndex, chqNo: c.chqNo, name: c.lastName + ' ' + c.firstName, week: c.week, office: c.office, client: c.client || '', payRate: c.payRate || 0, hours: c.hours || 0, empNo: c.empNo || '', jigId: c.jigId || '', netPay: c.netPay }))
     };
 
-    cacheReceipt({
-      receiptId, distributor, collector, timestamp, weekEnding,
-      cheques: sel.map(c => ({ chqNo: c.chqNo, name: c.lastName + ' ' + c.firstName, client: c.client || '', week: c.week || '', payRate: c.payRate || 0, hours: c.hours || 0, empNo: c.empNo || '', jigId: c.jigId || '', netPay: c.netPay }))
-    });
+    // NOTE: the receipt is cached after a successful response now (see below), so
+    // a failed confirm no longer leaves a phantom receipt behind. The offline
+    // path still caches up front — that receipt is provisional by definition.
+    if (!isOnline) {
+      cacheReceipt({
+        receiptId, distributor, collector, timestamp, weekEnding,
+        cheques: sel.map(c => ({ chqNo: c.chqNo, name: c.lastName + ' ' + c.firstName, client: c.client || '', week: c.week || '', payRate: c.payRate || 0, hours: c.hours || 0, empNo: c.empNo || '', jigId: c.jigId || '', netPay: c.netPay }))
+      });
+    }
 
     if (isOnline) {
       try {
@@ -3803,7 +3934,26 @@ confirmBtn.addEventListener('click', async () => {
         if (confirmedUids.size > 0) {
           playConfirmSound();
           addToHistory(collector, timestamp, sel.filter(c => confirmedUids.has(c.uid)), false, false, '');
+          // FIX: cache the receipt only AFTER the server responds, and only with
+          // the cheques it actually accepted. It used to be cached from the whole
+          // cart before the request, so a failed or partial confirm left a
+          // phantom receipt that viewReceipt would happily render and print.
+          cacheReceipt({
+            receiptId, distributor, collector, timestamp, weekEnding,
+            cheques: sel.filter(c => confirmedUids.has(c.uid)).map(c => ({
+              chqNo: c.chqNo, name: c.lastName + ' ' + c.firstName, client: c.client || '',
+              week: c.week || '', payRate: c.payRate || 0, hours: c.hours || 0,
+              empNo: c.empNo || '', jigId: c.jigId || '', netPay: c.netPay
+            }))
+          });
           showQrPanel(receiptId); // QR only when at least one cheque was actually confirmed
+
+          // FIX: the backend has always returned photoError, and nothing read it.
+          // A Drive failure meant the signature was committed, "✅ confirmed" was
+          // shown, and the stamped photo — the only proof of who collected — was
+          // silently never stored. Same for a failed _Receipts write, which left
+          // the QR pointing at a receipt that does not exist.
+          reportPostConfirmProblems(res, !!photoDataUrl);
         }
       } catch (err) {
         queueOffline(pickupData, collector, timestamp, sel);
@@ -3827,17 +3977,31 @@ confirmBtn.addEventListener('click', async () => {
   $('searchClear').classList.add('hidden');
   resultsSection.classList.add('hidden'); selectedBar.classList.add('hidden'); actionArea.classList.add('hidden');
   searchResults = [];
-  // Reset void mode
-  voidMode = false;
-  $('voidToggle').classList.remove('active');
-  $('actionArea').querySelector('.action-card').classList.remove('void-active');
-  $('actionTitle').textContent = 'Confirm Pickup';
-  confirmBtn.classList.remove('void-mode');
+  // FIX: void mode used to be reset unconditionally, even when failed cheques
+  // were deliberately kept in the cart for retry. The card flipped back to
+  // "Confirm Pickup" with the collector field live, so a staff member following
+  // the "kept in cart — refresh & retry" instruction would hand out and mark
+  // COLLECTED the very cheque they were trying to destroy. If we keep the cart,
+  // we keep the mode.
+  const keepingFailedCheques = !!(keepInCart && keepInCart.size > 0);
+  if (!keepingFailedCheques) {
+    voidMode = false;
+    $('voidToggle').classList.remove('active');
+    $('actionArea').querySelector('.action-card').classList.remove('void-active');
+    $('actionTitle').textContent = 'Confirm Pickup';
+    confirmBtn.classList.remove('void-mode');
+  }
   updateDesktopCartEmpty();
   closeMobileSheet();
   updateMobileCartBar();
   updateDashboard();
-  confirmBtn.textContent = 'Confirm Pickup'; confirmBtn.classList.remove('processing');
+  // Keep the button labelled for whichever mode we are still in.
+  confirmBtn.textContent = voidMode ? 'Void Cheque(s)' : 'Confirm Pickup';
+  confirmBtn.classList.remove('processing');
+  if (voidMode) {
+    // Voiding requires a fresh photo, so make it obvious the retry needs one.
+    showToast('🚫 Still in VOID mode — retake the photo to retry the failed cheque(s)');
+  }
   renderCart(); // re-shows the cart panel if failed cheques were kept
 
   // Cooldown
@@ -3899,7 +4063,9 @@ function playConfirmSound() {
 // =============================================
 function addToHistory(collector, timestamp, cheques, offline, isVoid, voidedBy) {
   const distributor = currentUser ? currentUser.name : '';
-  sessionHistory.unshift({ distributor, collector, timestamp, offline, isVoid: !!isVoid, voidedBy: voidedBy || '', cheques: cheques.map(c => ({ chqNo: c.chqNo, name: c.lastName + ' ' + c.firstName, week: c.week, office: c.office })) });
+  // uid is carried so syncOfflineQueue can clear the "queued" flag only for
+  // cheques the server actually accepted, instead of blanket-clearing them all.
+  sessionHistory.unshift({ distributor, collector, timestamp, offline, isVoid: !!isVoid, voidedBy: voidedBy || '', cheques: cheques.map(c => ({ uid: c.uid, chqNo: c.chqNo, name: c.lastName + ' ' + c.firstName, week: c.week, office: c.office })) });
   saveSessionHistory(); renderHistory();
 }
 function renderHistory() {
@@ -3933,7 +4099,45 @@ function queueOffline(pickupData, collector, timestamp, cheques) {
   addToHistory(collector, timestamp, cheques, true, isVoidAction, voidedByName);
   updateOfflineBar();
 }
-function offlineQueueKey() { return 'cheque_offline_queue_' + (pin || 'anon'); }
+// FIX: the queue key used to embed the PIN itself — 'cheque_offline_queue_4821'.
+// localStorage survives logout by design (so a queued pickup can still sync), so
+// on a shared counter tablet anyone could read a colleague's live credential out
+// of the key name. The queue now hangs off a random per-device id; the PIN each
+// queued request needs is already inside its own payload, so identity is
+// preserved without ever writing the PIN into a key.
+function deviceQueueId() {
+  var id = null;
+  try { id = localStorage.getItem('cheque_device_id'); } catch(e) {}
+  if (!id) {
+    try {
+      var a = new Uint8Array(8); crypto.getRandomValues(a);
+      id = Array.from(a).map(function(b){ return ('0' + b.toString(16)).slice(-2); }).join('');
+    } catch(e) { id = String(Date.now()) + Math.random().toString(36).slice(2, 10); }
+    try { localStorage.setItem('cheque_device_id', id); } catch(e) {}
+  }
+  return id;
+}
+function offlineQueueKey() { return 'cheque_offline_queue_' + deviceQueueId(); }
+
+// One-time migration: adopt any queue left under an old PIN-keyed name, then
+// remove it so the PIN stops sitting in localStorage.
+function migrateLegacyQueueKeys_() {
+  try {
+    var keys = [];
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (k && k.indexOf('cheque_offline_queue_') === 0 && k !== offlineQueueKey()) keys.push(k);
+    }
+    keys.forEach(function(k) {
+      try {
+        var v = JSON.parse(localStorage.getItem(k) || '[]');
+        if (Array.isArray(v) && v.length) offlineQueue = offlineQueue.concat(v);
+      } catch(e) {}
+      try { localStorage.removeItem(k); } catch(e) {}
+    });
+    if (keys.length) saveOfflineQueue();
+  } catch(e) {}
+}
 function saveOfflineQueue() {
   try {
     localStorage.setItem(offlineQueueKey(), JSON.stringify(offlineQueue));
@@ -3947,15 +4151,87 @@ function saveOfflineQueue() {
     }
   }
 }
-function loadOfflineQueue() { try { const s = localStorage.getItem(offlineQueueKey()); if (s) offlineQueue = JSON.parse(s); updateOfflineBar(); } catch(e) {} }
+function loadOfflineQueue() {
+  try { const s = localStorage.getItem(offlineQueueKey()); if (s) offlineQueue = JSON.parse(s); } catch(e) {}
+  migrateLegacyQueueKeys_();
+  updateOfflineBar();
+}
+
+// FIX — THE BIG ONE. This loop used to be:
+//     try { await api(offlineQueue[0]); offlineQueue.shift(); synced++; }
+//     catch (err) { break; }
+// Apps Script returns HTTP 200 for business failures, and api() only throws on a
+// transport error. So {error:'Server busy'}, {error:'Too many failed attempts'},
+// {error:'Invalid PIN'} and per-cheque rejections in res.results ALL resolved
+// normally — the item was dequeued, "✅ Synced N pickup(s)" was shown, and the
+// history rows were flipped from "queued" to confirmed. The signature column was
+// never written, so cheques that had physically been handed out still read as
+// available and could be handed out a second time.
+//
+// Now: a request is only dropped from the queue when the server confirms it.
+// Nothing is discarded on an error — the queue stops and the user is told.
 async function syncOfflineQueue() {
   if (!isOnline || offlineQueue.length === 0) return;
-  updateOfflineBar(); let synced = 0;
-  // FIX: was a for-loop that shifted while iterating and only drained ~half the queue per pass
+  updateOfflineBar();
+  let synced = 0, syncedUids = new Set(), blocked = null, permanentlyFailed = [];
+
   while (offlineQueue.length > 0) {
-    try { await api(offlineQueue[0]); offlineQueue.shift(); saveOfflineQueue(); synced++; updateOfflineBar(); } catch (err) { break; }
+    const item = offlineQueue[0];
+    let res;
+    try {
+      res = await api(item);
+    } catch (err) {
+      blocked = 'Connection lost — ' + offlineQueue.length + ' pickup(s) still queued';
+      break;
+    }
+
+    // Whole request rejected (lock timeout, lockout, bad PIN). Keep it queued.
+    if (!res || res.error) {
+      blocked = (res && res.error) ? res.error : 'Server rejected the sync';
+      break;
+    }
+
+    if (Array.isArray(res.results)) {
+      const okUids = res.results.filter(r => r && r.ok).map(r => r.uid);
+      const failed = res.results.filter(r => r && !r.ok);
+      okUids.forEach(u => syncedUids.add(u));
+
+      // "Already collected/voided" is a settled outcome, not a retryable failure —
+      // someone else got there first. Anything else stays visible to the user.
+      const retryable = failed.filter(r => !/already collect|already void/i.test(String(r.error || '')));
+      const superseded = failed.filter(r => /already collect|already void/i.test(String(r.error || '')));
+      superseded.forEach(r => permanentlyFailed.push({ uid: r.uid, reason: 'already handled by someone else' }));
+      retryable.forEach(r => permanentlyFailed.push({ uid: r.uid, reason: r.error || 'rejected' }));
+    }
+
+    offlineQueue.shift();
+    saveOfflineQueue();
+    synced++;
+    updateOfflineBar();
   }
-  if (synced > 0) { showToast('✅ Synced ' + synced + ' pickup(s)'); sessionHistory.forEach(h => { if (h.offline) h.offline = false; }); saveSessionHistory(); renderHistory(); }
+
+  // Only clear the "queued" flag on history entries the server actually accepted.
+  if (syncedUids.size > 0 || synced > 0) {
+    sessionHistory.forEach(h => {
+      if (!h.offline) return;
+      if (!Array.isArray(h.cheques) || h.cheques.length === 0) return;
+      const allIn = h.cheques.every(c => !c.uid || syncedUids.has(c.uid));
+      if (allIn) h.offline = false;
+    });
+    saveSessionHistory();
+    renderHistory();
+  }
+
+  if (permanentlyFailed.length > 0) {
+    showToast('⚠️ ' + permanentlyFailed.length + ' queued cheque(s) were NOT recorded — ' + permanentlyFailed[0].reason);
+    console.warn('[cheque] queued cheques rejected by server:', permanentlyFailed);
+  } else if (synced > 0 && !blocked) {
+    showToast('✅ Synced ' + synced + ' pickup(s)');
+  }
+
+  if (blocked) {
+    showToast('⚠️ Sync paused: ' + blocked + ' — ' + offlineQueue.length + ' pickup(s) still queued, will retry');
+  }
   updateOfflineBar();
 }
 setInterval(() => { if (isOnline && offlineQueue.length > 0) syncOfflineQueue(); }, 30000);
@@ -4057,7 +4333,19 @@ function parsePayrollFile(file) {
         let chq = 0; rows.forEach(row => { if (row) for (let c = 0; c < row.length; c++) if (String(row[c] || '').trim().toUpperCase() === 'CHQ') { chq++; break; } }); totalCheques += chq;
         sheets.push({ name: sn, rows: rows.map(row => row.map(cell => { if (cell == null) return ''; if (cell instanceof Date) return cell.toISOString().split('T')[0]; if (typeof cell === 'object') return String(cell); return cell; })) });
       });
-      if (!weekEnding) { weekEnding = (prompt('Week ending not found. Enter it (e.g. WE0214):') || '').toUpperCase().trim(); if (!weekEnding) { uploadErrorDiv.textContent = 'Week ending required'; uploadErrorDiv.classList.remove('hidden'); return; } }
+      // FIX: whatever was typed here went straight through to sheet creation,
+      // but every reader enforces /^WE\d{4}$/. "WE 0214" or "0214" produced tabs
+      // that were permanently invisible to the whole app — reported as success.
+      if (!weekEnding) {
+        weekEnding = (prompt('Week ending not found. Enter it (e.g. WE0214):') || '').toUpperCase().trim();
+        if (!weekEnding) { uploadErrorDiv.textContent = 'Week ending required'; uploadErrorDiv.classList.remove('hidden'); return; }
+      }
+      weekEnding = weekEnding.replace(/\s+/g, '');
+      if (!/^WE\d{4}$/.test(weekEnding)) {
+        uploadErrorDiv.textContent = 'Week code "' + weekEnding + '" is not valid — it must be WE followed by 4 digits, e.g. WE0214. Cheques uploaded under any other code are invisible to the app.';
+        uploadErrorDiv.classList.remove('hidden');
+        return;
+      }
       parsedPayroll = { weekEnding, sheets, fileName: file.name };
       uploadZone.classList.add('hidden'); uploadPreview.classList.remove('hidden'); modalUploadBtn.classList.remove('hidden'); modalUploadBtn.disabled = false;
       $('upWeek').textContent = weekEnding; $('upOffices').textContent = sheets.map(s => s.name).join(', ');
@@ -4076,14 +4364,29 @@ modalUploadBtn.addEventListener('click', async () => {
     uploadProgress.classList.add('hidden');
     if (res.error) { uploadErrorDiv.textContent = res.error; uploadErrorDiv.classList.remove('hidden'); modalUploadBtn.disabled = false; }
     else {
-      uploadSuccessDiv.textContent = '✅ ' + res.message; uploadSuccessDiv.classList.remove('hidden'); modalUploadBtn.classList.add('hidden');
+      // FIX: this used to show a green tick and res.message for ANY non-error
+      // response — including "0 tabs created, 1 already existed", which is what a
+      // re-uploaded correction produces. The admin closed the modal believing the
+      // corrections had landed when nothing had been written at all. res.errors
+      // was never read either, so per-tab failures were invisible.
+      if (res.warning) {
+        uploadErrorDiv.textContent = '⚠️ ' + res.warning;
+        uploadErrorDiv.classList.remove('hidden');
+      }
+      if (res.created > 0) {
+        uploadSuccessDiv.textContent = '✅ ' + res.message;
+        uploadSuccessDiv.classList.remove('hidden');
+      }
+      modalUploadBtn.classList.add('hidden');
       // Refresh week listing to pick up new sheets, then load the uploaded week
       const weeksRes = await api({ action: 'getWeeks' });
       if (weeksRes.weeks) { weeksData = weeksRes.weeks; weekOrder = weeksRes.weekOrder || Object.keys(weeksData); populateFilters(); }
       weekFilter.value = parsedPayroll.weekEnding; updateOfficeFilter();
       await loadViewData(parsedPayroll.weekEnding, officeFilter.value, true);
       doSearch();
-      showToast('✅ ' + parsedPayroll.weekEnding + ' uploaded');
+      showToast(res.created > 0
+        ? '✅ ' + parsedPayroll.weekEnding + ' uploaded — ' + res.message
+        : '⚠️ ' + parsedPayroll.weekEnding + ': nothing was written — see the message above');
     }
   } catch (err) { uploadProgress.classList.add('hidden'); uploadErrorDiv.textContent = 'Failed: ' + err.message; uploadErrorDiv.classList.remove('hidden'); modalUploadBtn.disabled = false; }
 });
@@ -4096,6 +4399,7 @@ async function loadPosts() {
   postsLoading = true;
   try {
     var res = await api({ action: 'getPosts' });
+    if (res && res.error) { showToast('⚠️ ' + res.error); postsLoading = false; return; }
     postsData = res.posts || [];
     renderPosts();
   } catch(e) { /* silent */ }
@@ -4469,13 +4773,19 @@ $('pfMHSubmit').addEventListener('click', async function() {
   $('pfMHSubmit').disabled = true;
   $('pfMHError').classList.add('hidden');
   try {
-    await api({
+    // FIX: the response used to be discarded, so an error still showed a green
+    // "posted" tick and the report silently never existed.
+    var mhRes = await api({
       action: 'createPost', type: 'missing_hours',
       employeeName: name, phone: phone, chqNo: chqNo,
       empNo: empNo, jigId: jigId,
       client: client, week: week,
       hours: hours, message: desc, offices: offices
     });
+    if (mhRes && mhRes.error) {
+      $('pfMHError').textContent = mhRes.error; $('pfMHError').classList.remove('hidden');
+      $('pfMHSubmit').disabled = false; return;
+    }
     $('postFormMH').classList.add('hidden');
     showToast('✅ Missing hours report posted');
     await loadPosts();
@@ -4506,7 +4816,11 @@ $('pfBCSubmit').addEventListener('click', async function() {
   $('pfBCSubmit').disabled = true;
   $('pfBCError').classList.add('hidden');
   try {
-    await api({ action: 'createPost', type: 'broadcast', message: msg, offices: offices });
+    var bcRes = await api({ action: 'createPost', type: 'broadcast', message: msg, offices: offices });
+    if (bcRes && bcRes.error) {
+      $('pfBCError').textContent = bcRes.error; $('pfBCError').classList.remove('hidden');
+      $('pfBCSubmit').disabled = false; return;
+    }
     $('postFormBC').classList.add('hidden');
     showToast('✅ Broadcast posted');
     await loadPosts();
@@ -4562,6 +4876,42 @@ async function deletePostComment(postId, commentId) {
 // =============================================
 let _toastTimer = null;
 function showToast(msg) { toast.textContent = msg; toast.classList.add('show'); clearTimeout(_toastTimer); _toastTimer = setTimeout(() => toast.classList.remove('show'), 3500); }
+
+// FIX: the backend reports photoError and (now) receiptWritten, and neither was
+// ever read. A Drive outage or a failed _Receipts append produced a completely
+// clean-looking success: signature written, "✅ confirmed" toast, QR displayed —
+// with no photo stored and a QR that resolves to "Receipt not found". These are
+// the audit artefacts for cash-equivalent instruments, so a failure has to be
+// loud and it has to persist longer than a toast.
+function reportPostConfirmProblems(res, hadPhoto) {
+  if (!res) return;
+  const problems = [];
+  if (hadPhoto && (res.photoError || !res.photoUrl)) {
+    problems.push('the pickup photo was NOT saved to Drive' + (res.photoError ? ' (' + res.photoError + ')' : ''));
+  }
+  if (res.receiptWritten === false) {
+    problems.push('the receipt was NOT recorded, so the QR code will not resolve');
+  }
+  if (problems.length === 0) return;
+
+  console.error('[cheque] post-confirm problems:', problems, res);
+  // Persistent banner — a toast is too easy to miss, and the cheques are already
+  // signed out at this point so the record cannot be reconstructed later.
+  let bar = document.getElementById('auditWarnBar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'auditWarnBar';
+    bar.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:400;background:#c4463a;color:#fff;'
+      + 'padding:12px 16px;font-size:13px;font-weight:600;line-height:1.45;box-shadow:0 -4px 20px rgba(0,0,0,.25);'
+      + 'display:flex;align-items:flex-start;gap:12px';
+    document.body.appendChild(bar);
+  }
+  bar.innerHTML = '<span style="flex:1">⚠️ The cheques were marked collected, but ' + escapeHtml(problems.join(' and '))
+    + '. Record this handover manually before the person leaves.</span>'
+    + '<button id="auditWarnDismiss" style="background:rgba(255,255,255,.2);color:#fff;border:none;'
+    + 'border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0">Dismiss</button>';
+  document.getElementById('auditWarnDismiss').addEventListener('click', () => bar.remove());
+}
 
 // =============================================
 // QR SUCCESS PANEL
