@@ -1203,7 +1203,15 @@ body {
 .wn-item + .wn-item { margin-top:10px; padding-top:10px; border-top:1px solid var(--border-light); }
 .wn-scope { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--blue); background:var(--blue-soft); padding:2px 7px; border-radius:5px; display:inline-block; margin-bottom:5px; }
 .wn-text { font-size:13.5px; line-height:1.5; color:var(--text); white-space:pre-wrap; word-break:break-word; }
-.wn-meta { font-size:11px; color:var(--text-tertiary); margin-top:5px; }
+.wn-meta { font-size:11px; color:var(--text-tertiary); margin-top:5px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.wn-act {
+  background:none; border:none; padding:0; cursor:pointer; font-family:var(--font);
+  font-size:11px; font-weight:700; color:var(--text-tertiary); transition:var(--transition);
+}
+.wn-act:hover { color:var(--accent-text); }
+.wn-act.wn-del:hover { color:var(--red); }
+.wn-office-group + .wn-office-group { margin-top:12px; padding-top:12px; border-top:1px solid var(--border-light); }
+.wn-office-head { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--blue); margin-bottom:7px; }
 .wn-empty { font-size:13px; color:var(--text-tertiary); font-style:italic; }
 
 /* ========== REPORTS ========== */
@@ -1675,7 +1683,7 @@ table.rp-table td.mono { font-family:var(--mono); font-size:12px; }
             <svg class="wn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
             <span class="wn-title" id="wnTitle">Week notes</span>
             <span class="wn-count" id="wnCount"></span>
-            <button class="wn-edit" id="wnEditBtn" title="Add or edit the note for this week and office">Edit</button>
+            <button class="wn-edit" id="wnEditBtn" title="Add a note for this week">+ Add note</button>
             <svg class="wn-chev" id="wnChev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
           </div>
           <div class="wn-body" id="wnBody"></div>
@@ -2024,15 +2032,16 @@ table.rp-table td.mono { font-family:var(--mono); font-size:12px; }
 <!-- WEEK NOTE EDITOR -->
 <div class="modal-overlay hidden" id="weekNoteModal">
   <div class="modal" style="max-width:520px">
-    <h3>📌 Week note</h3>
+    <h3 id="wnModalTitle">📌 Add week note</h3>
     <div class="pf-group" style="margin-bottom:12px">
       <div class="pf-label">Who is this note for?</div>
       <select class="filter-select" id="wnScope" style="width:100%"></select>
     </div>
     <textarea id="wnTextarea" placeholder="e.g. Angstrom cheques arrive Wednesday — do not tell workers Monday." style="width:100%;min-height:130px;padding:12px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:14px;font-family:var(--font);background:var(--bg);color:var(--text);resize:vertical;outline:none"></textarea>
-    <div style="font-size:11px;color:var(--text-tertiary);margin-top:6px">Everyone who can see this office can read and edit this note. Your name is recorded against it. Clear the box and save to delete it.</div>
+    <div style="font-size:11px;color:var(--text-tertiary);margin-top:6px">Everyone who can see this office reads these notes. Your name is recorded against yours, and only you or an admin can change or remove it.</div>
     <div class="upload-error hidden" id="wnError"></div>
     <div class="modal-actions" style="margin-top:16px">
+      <button class="btn-modal btn-modal-secondary hidden" id="wnDeleteBtn" style="margin-right:auto;color:var(--red)">Delete note</button>
       <button class="btn-modal btn-modal-secondary" id="wnCancelBtn">Cancel</button>
       <button class="btn-modal btn-modal-primary" id="wnSaveBtn">Save note</button>
     </div>
@@ -4727,7 +4736,6 @@ function renderWeekNotes() {
   const office = officeFilter.value || 'ALL';
   if (!week || !pin) { box.classList.add('hidden'); return; }
 
-  // Show the company-wide note plus the one for the selected office.
   // Match the way the backend grants access (case-insensitive, either-contains),
   // otherwise a note saved under the _Users office label disappears whenever the
   // sheet's normalised office name differs even slightly.
@@ -4746,19 +4754,57 @@ function renderWeekNotes() {
     // note may say "hold everything for Flynn".
     $('wnBody').innerHTML = '<div class="wn-empty" style="color:var(--red)">⚠️ Could not load notes for this week. Do not assume there are none — refresh to retry.</div>';
   } else if (visible.length === 0) {
-    $('wnBody').innerHTML = '<div class="wn-empty">No notes for this week yet — use Edit to add one.</div>';
+    $('wnBody').innerHTML = '<div class="wn-empty">No notes for this week yet — use + Add note.</div>';
   } else {
-    $('wnBody').innerHTML = visible.map(n => {
-      const when = n.updatedAt ? formatPostTime(n.updatedAt) : '';
-      return '<div class="wn-item">'
-        + '<span class="wn-scope">' + escapeHtml(n.office === 'ALL' ? 'All offices' : n.office) + '</span>'
-        + '<div class="wn-text">' + escapeHtml(n.note) + '</div>'
-        + '<div class="wn-meta">' + escapeHtml(n.updatedBy || '?') + (when ? ' · ' + escapeHtml(when) : '') + '</div>'
-        + '</div>';
-    }).join('');
+    // Group by office so several notes for the same branch read as one running
+    // log rather than a flat list of scope chips.
+    const groups = [];
+    visible.forEach(n => {
+      let g = groups.find(x => x.office === n.office);
+      if (!g) { g = { office: n.office, items: [] }; groups.push(g); }
+      g.items.push(n);
+    });
+
+    $('wnBody').innerHTML = groups.map(g =>
+      '<div class="wn-office-group">'
+      + '<div class="wn-office-head">' + escapeHtml(g.office === 'ALL' ? 'All offices' : g.office) + '</div>'
+      + g.items.map(n => {
+          const when = n.updatedAt ? formatPostTime(n.updatedAt) : '';
+          const edited = (n.updatedAt && n.createdAt && n.updatedAt !== n.createdAt) ? ' · edited' : '';
+          return '<div class="wn-item" data-note-id="' + escapeHtml(n.id) + '">'
+            + '<div class="wn-text">' + escapeHtml(n.note) + '</div>'
+            + '<div class="wn-meta">'
+              + '<span>' + escapeHtml(n.author || n.updatedBy || '?') + (when ? ' · ' + escapeHtml(when) : '') + edited + '</span>'
+              + (n.canEdit
+                  ? '<button class="wn-act" data-wn-edit="' + escapeHtml(n.id) + '">Edit</button>'
+                    + '<button class="wn-act wn-del" data-wn-delete="' + escapeHtml(n.id) + '">Delete</button>'
+                  : '')
+            + '</div></div>';
+        }).join('')
+      + '</div>').join('');
   }
   // Never un-hide over an active search — see updateDashboard().
   box.classList.toggle('hidden', searchInput.value.trim().length > 0);
+}
+
+// Delegated so it survives every re-render.
+$('wnBody').addEventListener('click', function(e) {
+  const ed = e.target.closest('[data-wn-edit]');
+  const dl = e.target.closest('[data-wn-delete]');
+  if (ed) { openNoteEditor(ed.dataset.wnEdit); return; }
+  if (dl) { deleteWeekNote(dl.dataset.wnDelete); return; }
+});
+
+async function deleteWeekNote(noteId) {
+  const n = weekNotesData.find(x => x.id === noteId);
+  if (!n) return;
+  if (!confirm('Delete this note?\n\n"' + n.note.slice(0, 120) + (n.note.length > 120 ? '…' : '') + '"')) return;
+  try {
+    const res = await api({ action: 'deleteWeekNote', noteId: noteId });
+    if (res && res.error) { showToast('⚠️ ' + res.error); return; }
+    showToast('✅ Note deleted');
+    await loadWeekNotes();
+  } catch (e) { showToast('Could not delete the note'); }
 }
 
 $('wnHead').addEventListener('click', function(e) {
@@ -4808,43 +4854,72 @@ function populateNoteScopeOptions() {
   else if (!isAdmin && sel.options.length) sel.value = sel.options[0].value;
 }
 
-function loadNoteForScope() {
-  const scope = $('wnScope').value;
-  const existing = weekNotesData.find(n => n.office === scope);
-  $('wnTextarea').value = existing ? existing.note : '';
-}
-
-$('wnScope').addEventListener('change', loadNoteForScope);
+let wnEditingId = null;   // null = adding a new note
 
 $('wnEditBtn').addEventListener('click', function() {
   if (!weekFilter.value) { showToast('Pick a week first'); return; }
+  openNoteEditor(null);
+});
+
+// noteId === null adds a new note; otherwise edits that one.
+function openNoteEditor(noteId) {
+  wnEditingId = noteId || null;
+  const existing = noteId ? weekNotesData.find(n => n.id === noteId) : null;
+
   $('wnError').classList.add('hidden');
   $('wnSaveBtn').disabled = false;
   $('wnTextarea').disabled = false;
-  populateNoteScopeOptions();
-  loadNoteForScope();
-  $('wnError').classList.add('hidden');
+
+  if (existing) {
+    $('wnModalTitle').textContent = '📌 Edit week note';
+    // Scope is fixed once a note exists — moving it between offices changes who
+    // can see it, which is a different action from editing the text.
+    $('wnScope').innerHTML = '<option value="' + escapeHtml(existing.office) + '">'
+      + escapeHtml(existing.office === 'ALL' ? 'All offices (company-wide)' : existing.office) + '</option>';
+    $('wnScope').disabled = true;
+    $('wnTextarea').value = existing.note;
+    $('wnDeleteBtn').classList.remove('hidden');
+  } else {
+    $('wnModalTitle').textContent = '📌 Add week note';
+    $('wnScope').disabled = false;
+    populateNoteScopeOptions();
+    $('wnTextarea').value = '';
+    $('wnDeleteBtn').classList.add('hidden');
+  }
+
   $('weekNoteModal').classList.remove('hidden');
   setTimeout(() => $('wnTextarea').focus(), 50);
+}
+
+$('wnDeleteBtn').addEventListener('click', async function() {
+  if (!wnEditingId) return;
+  const id = wnEditingId;
+  wnEditingId = null;
+  $('weekNoteModal').classList.add('hidden');
+  await deleteWeekNote(id);
 });
 
-$('wnCancelBtn').addEventListener('click', () => $('weekNoteModal').classList.add('hidden'));
-$('weekNoteModal').addEventListener('click', e => { if (e.target === $('weekNoteModal')) $('weekNoteModal').classList.add('hidden'); });
+$('wnCancelBtn').addEventListener('click', () => { wnEditingId = null; $('weekNoteModal').classList.add('hidden'); });
+$('weekNoteModal').addEventListener('click', e => { if (e.target === $('weekNoteModal')) { wnEditingId = null; $('weekNoteModal').classList.add('hidden'); } });
 
 $('wnSaveBtn').addEventListener('click', async function() {
   const office = $('wnScope').value;
   const week = weekFilter.value;
   const note = $('wnTextarea').value.trim();
-  if (!office) { $('wnError').textContent = 'Pick which office this note is for'; $('wnError').classList.remove('hidden'); return; }
+  if (!wnEditingId && !office) { $('wnError').textContent = 'Pick which office this note is for'; $('wnError').classList.remove('hidden'); return; }
+  if (!wnEditingId && !note) { $('wnError').textContent = 'Write something first'; $('wnError').classList.remove('hidden'); return; }
   $('wnSaveBtn').disabled = true;
   $('wnError').classList.add('hidden');
   try {
-    const res = await api({ action: 'saveWeekNote', week: week, office: office, note: note });
+    const res = wnEditingId
+      ? await api({ action: 'updateWeekNote', noteId: wnEditingId, note: note })
+      : await api({ action: 'addWeekNote', week: week, office: office, note: note });
     if (res && res.error) {
       $('wnError').textContent = res.error; $('wnError').classList.remove('hidden');
     } else {
       $('weekNoteModal').classList.add('hidden');
-      showToast(note ? '✅ Note saved' : '✅ Note cleared');
+      showToast(!note ? '✅ Note deleted' : (wnEditingId ? '✅ Note updated' : '✅ Note added'));
+      wnEditingId = null;
       await loadWeekNotes();
     }
   } catch (e) {
