@@ -103,11 +103,22 @@ function parseWeekDate(weekCode) {
   // ending, so staff auto-landed on a stale week at login and the live week fell
   // off the bottom of the dropdown (and out of the offline cache, which only
   // keeps the first four entries of weekOrder).
-  var HALF_YEAR = 180 * 24 * 60 * 60 * 1000;
+  var DAY = 24 * 60 * 60 * 1000;
+  var HALF_YEAR = 180 * DAY;
+  var NEAR_FUTURE = 45 * DAY;
+
   if (candidate.getTime() - now.getTime() > HALF_YEAR) {
+    // Far in the future for this year => it belongs to last year.
     candidate = new Date(year - 1, mm - 1, dd);
   } else if (now.getTime() - candidate.getTime() > HALF_YEAR) {
-    candidate = new Date(year + 1, mm - 1, dd);
+    // Far in the past. This is genuinely ambiguous: on 28 Dec, "WE0103" means
+    // next week, but on 27 Jul an old "WE0110" tab really is last January.
+    // Only roll forward when doing so lands JUST ahead of today — payroll never
+    // uploads six months in advance, but it does upload the coming week. The
+    // window must stay narrow: a symmetric 180-day guard would re-date every
+    // archived tab to next year and float it to the top of the week dropdown.
+    var next = new Date(year + 1, mm - 1, dd);
+    if (next.getTime() - now.getTime() <= NEAR_FUTURE) candidate = next;
   }
   return candidate.getTime();
 }
@@ -228,8 +239,12 @@ function pinLockStatus_(pin) {
 
 // Global lock. Only consulted by verifyPin, never by authenticated actions.
 function pinGlobalLockStatus_() {
-  var fails = Number(CacheService.getScriptCache().get('pin_fails_global') || 0);
-  return fails >= PIN_GLOBAL_MAX_FAILS;
+  var raw = CacheService.getScriptCache().get('pin_fails_global');
+  if (!raw) return false;
+  try {
+    var g = JSON.parse(raw);
+    return Number(g.c || 0) >= PIN_GLOBAL_MAX_FAILS;
+  } catch (e) { return false; }
 }
 
 function recordPinAttempt_(pin, success) {
@@ -238,8 +253,23 @@ function recordPinAttempt_(pin, success) {
   if (success) { cache.remove(key); return; }
   var fails = Number(cache.get(key) || 0) + 1;
   cache.put(key, String(fails), PIN_LOCK_SECONDS);
-  var g = Number(cache.get('pin_fails_global') || 0) + 1;
-  cache.put('pin_fails_global', String(g), PIN_LOCK_SECONDS);
+
+  // The global counter must expire on a FIXED window. Re-putting it with a full
+  // TTL on every failure (as the per-PIN key does, harmlessly) would let a slow
+  // trickle of failures hold the login gate shut forever — the same never-expires
+  // bug this rewrite exists to remove, just one level up.
+  var nowMs = new Date().getTime();
+  var g = { c: 0, t: nowMs };
+  try {
+    var raw = cache.get('pin_fails_global');
+    if (raw) g = JSON.parse(raw);
+  } catch (e) { g = { c: 0, t: nowMs }; }
+
+  var elapsed = nowMs - (g.t || nowMs);
+  if (elapsed >= PIN_LOCK_SECONDS * 1000) g = { c: 0, t: nowMs }; // window rolled over
+  g.c = (g.c || 0) + 1;
+  var remaining = Math.max(1, PIN_LOCK_SECONDS - Math.floor((nowMs - g.t) / 1000));
+  cache.put('pin_fails_global', JSON.stringify(g), remaining);
 }
 
 function verifyPin(pin) {
@@ -742,7 +772,10 @@ function confirmPickup(data, user) {
     // FIX: force the buffered signature writes out before releasing the lock.
     // Without this the last setValue could still be buffered while the next
     // request acquires the lock and reads the cell as empty.
-    SpreadsheetApp.flush();
+    // Guarded: if flush throws (service hiccup after a long lock hold) it must not
+    // escape, or a PARTIAL success would be reported to the client as a total
+    // failure with no results array — while those signatures are already written.
+    try { SpreadsheetApp.flush(); } catch (e) { /* results below are authoritative */ }
   } finally {
     lock.releaseLock();
   }
@@ -1134,7 +1167,7 @@ function voidCheques(data, user) {
       writtenLocators.push({ chqNo: rv.chqNo || c.chqNo, sheetName: c.sheetName, rowIndex: c.rowIndex });
       anySuccess = true;
     }
-    SpreadsheetApp.flush();
+    try { SpreadsheetApp.flush(); } catch (e) { /* see note in confirmPickup */ }
   } finally {
     lock.releaseLock();
   }
@@ -1316,14 +1349,16 @@ function handleCreatePost(data, user) {
                        .filter(function(o){ return o.length > 0; });
   if (requested.length === 0) requested = ['All Offices'];
 
-  if (!user.allOffices && user.role !== 'admin') {
-    requested = requested.filter(function(o) { return postVisibleToUser_(o, user); });
-    // Nothing the user may post to — scope it to their own offices instead of
-    // silently widening to company-wide.
-    if (requested.length === 0) {
-      requested = (user.offices || []).slice();
-      if (requested.length === 0) return { error: 'You have no office assigned — cannot post' };
-    }
+  // Only constrain users who actually have an office list. A client-access user
+  // legitimately has offices: [] and needs to post against whichever office the
+  // cheque belongs to — filtering them would block the missing-hours form
+  // entirely, which is the main thing they use.
+  if (!user.allOffices && user.role !== 'admin' && (user.offices || []).length > 0) {
+    var allowed = requested.filter(function(o) { return postVisibleToUser_(o, user); });
+    if (allowed.length > 0) requested = allowed;
+    // If none of the requested offices are theirs, fall back to their own rather
+    // than rejecting the post or silently widening it to company-wide.
+    else requested = (user.offices || []).slice();
   }
   var offices = requested.join(',');
 
@@ -1370,11 +1405,14 @@ function handleResolvePost(data, user) {
       // Resolved posts drop out of the default board view and are then deleted
       // permanently by cleanupResolvedPosts after 14 days, so this silently
       // destroyed other offices' wage disputes.
+      // Office scope is the check that matters here: it stops someone in another
+      // office closing (and, 14 days later, destroying) a wage dispute they
+      // cannot even see. Deliberately NOT restricted to the author or an admin —
+      // a missing-hours report is filed by whoever took the complaint at the
+      // counter and closed by whoever fixed it in payroll, so an author-only gate
+      // would break the normal resolution path. resolvedBy records who did it.
       if (!postVisibleToUser_(rows[i][4], user)) {
         return { error: 'Post not found' };
-      }
-      if (String(rows[i][3]) !== String(data.pin) && user.role !== 'admin') {
-        return { error: 'Only the author or an admin can resolve this post' };
       }
       var now = new Date().toISOString();
       sheet.getRange(i + 1, layout.resolved + 1).setValue(true);

@@ -2631,6 +2631,9 @@ async function loadViewData(week, office, force) {
     await new Promise(r => setTimeout(r, 150));
   }
   if (dataLoading) { showToast('⚠️ Still loading — try that again in a moment'); return; }
+  // Offline: serve whatever is cached rather than firing a doomed request and
+  // toasting "Could not load data" on every week/office change.
+  if (!isOnline) return;
   dataLoading = true;
   syncText.textContent = 'Loading...';
   try {
@@ -2703,26 +2706,35 @@ async function refreshCurrentView_() {
   // name: staff confirmed a handover believing it was someone else's cheque, and
   // the server could not catch it because the swapped payload was internally
   // consistent. Verify the cheque number before trusting a uid match.
+  // Build a replacement Map rather than mutating while iterating: a relocation
+  // can produce a uid that is still pending in the snapshot, which would
+  // overwrite another cart entry and silently drop a cheque.
   let cartRemoved = 0, cartMismatched = 0;
+  const nextCart = new Map();
   Array.from(cart.keys()).forEach(uid => {
     const cached = cart.get(uid);
     const fresh = allCheques.find(c => c.uid === uid);
-    if (!fresh) return; // not in the current view — leave it alone
+    if (!fresh) { nextCart.set(uid, cached); return; } // not in this view — leave alone
 
     if (cached && String(cached.chqNo) !== String(fresh.chqNo)) {
-      // The row moved underneath us. Try to re-find the real cheque by number
-      // within the same week, and fall back to dropping it rather than guessing.
+      // The row moved underneath us. Re-find the real cheque by number — scoped
+      // to the SAME OFFICE, because cheque numbers are only unique per office
+      // and a cross-office match would put a stranger's cheque in the cart with
+      // a payload the server cannot tell is wrong.
       const relocated = allCheques.find(c =>
-        String(c.chqNo) === String(cached.chqNo) && c.week === cached.week && !c.hasSignature);
-      cart.delete(uid);
-      if (relocated) cart.set(relocated.uid, relocated);
+        String(c.chqNo) === String(cached.chqNo) &&
+        c.week === cached.week &&
+        c.office === cached.office &&
+        !c.hasSignature);
+      if (relocated) nextCart.set(relocated.uid, relocated);
       else cartMismatched++;
       return;
     }
 
-    if (fresh.hasSignature) { cart.delete(uid); cartRemoved++; }
-    else cart.set(uid, fresh); // swap in the fresh object
+    if (fresh.hasSignature) { cartRemoved++; return; }
+    nextCart.set(uid, fresh); // swap in the fresh object
   });
+  cart = nextCart;
 
   if (cartRemoved > 0) {
     showToast('ℹ️ ' + cartRemoved + ' cheque' + (cartRemoved !== 1 ? 's' : '') + ' removed from cart — already collected or voided');
@@ -3999,8 +4011,9 @@ confirmBtn.addEventListener('click', async () => {
   confirmBtn.textContent = voidMode ? 'Void Cheque(s)' : 'Confirm Pickup';
   confirmBtn.classList.remove('processing');
   if (voidMode) {
-    // Voiding requires a fresh photo, so make it obvious the retry needs one.
-    showToast('🚫 Still in VOID mode — retake the photo to retry the failed cheque(s)');
+    // Voiding requires a fresh photo. Delay so this does not overwrite the result
+    // message the staff member still needs to read (showToast is a single node).
+    setTimeout(() => showToast('🚫 Still in VOID mode — retake the photo to retry the failed cheque(s)'), 3600);
   }
   renderCart(); // re-shows the cart panel if failed cheques were kept
 
@@ -4099,12 +4112,17 @@ function queueOffline(pickupData, collector, timestamp, cheques) {
   addToHistory(collector, timestamp, cheques, true, isVoidAction, voidedByName);
   updateOfflineBar();
 }
-// FIX: the queue key used to embed the PIN itself — 'cheque_offline_queue_4821'.
-// localStorage survives logout by design (so a queued pickup can still sync), so
-// on a shared counter tablet anyone could read a colleague's live credential out
-// of the key name. The queue now hangs off a random per-device id; the PIN each
-// queued request needs is already inside its own payload, so identity is
-// preserved without ever writing the PIN into a key.
+// FIX (PARTIAL — read this before assuming the PIN is gone): the queue key used
+// to embed the PIN itself — 'cheque_offline_queue_4821' — so on a shared counter
+// tablet a colleague's live credential was visible at a glance in the devtools
+// storage list, and it survived logout by design. The queue now hangs off a
+// random per-device id.
+// RESIDUAL: each queued request still carries pin in its own payload, because
+// that PIN is what attributes the pickup to the right staff member on sync.
+// Stripping it would either break sync after logout or attribute one person's
+// handover to whoever happens to be logged in next — both worse. So the PIN is
+// no longer in a key name, but it is still inside the stored JSON value.
+// Properly fixing this needs a server-issued session token instead of a raw PIN.
 function deviceQueueId() {
   var id = null;
   try { id = localStorage.getItem('cheque_device_id'); } catch(e) {}
@@ -4173,7 +4191,7 @@ function loadOfflineQueue() {
 async function syncOfflineQueue() {
   if (!isOnline || offlineQueue.length === 0) return;
   updateOfflineBar();
-  let synced = 0, syncedUids = new Set(), blocked = null, permanentlyFailed = [];
+  let synced = 0, syncedUids = new Set(), blocked = null, permanentlyFailed = [], deadLettered = [];
 
   while (offlineQueue.length > 0) {
     const item = offlineQueue[0];
@@ -4185,10 +4203,28 @@ async function syncOfflineQueue() {
       break;
     }
 
-    // Whole request rejected (lock timeout, lockout, bad PIN). Keep it queued.
+    // Whole request rejected (lock timeout, lockout, bad PIN, malformed payload).
     if (!res || res.error) {
-      blocked = (res && res.error) ? res.error : 'Server rejected the sync';
-      break;
+      const msg = (res && res.error) ? String(res.error) : 'Server rejected the sync';
+      const transient = /busy|try again|too many failed/i.test(msg);
+      item._attempts = (item._attempts || 0) + 1;
+
+      // Transient errors: keep the item and stop — it will retry on the timer.
+      // Anything else (a removed PIN, a payload an older app version produced)
+      // can never succeed, and leaving it at the head of the queue would block
+      // every real pickup behind it forever. After a few tries, set it aside so
+      // the rest of the queue can drain, and tell the user loudly — those cheques
+      // were physically handed over and are NOT recorded.
+      if (transient || item._attempts < 4) {
+        blocked = msg;
+        saveOfflineQueue();
+        break;
+      }
+
+      offlineQueue.shift();
+      deadLettered.push({ item: item, reason: msg });
+      saveOfflineQueue();
+      continue;
     }
 
     if (Array.isArray(res.results)) {
@@ -4215,22 +4251,45 @@ async function syncOfflineQueue() {
     sessionHistory.forEach(h => {
       if (!h.offline) return;
       if (!Array.isArray(h.cheques) || h.cheques.length === 0) return;
-      const allIn = h.cheques.every(c => !c.uid || syncedUids.has(c.uid));
+      // Require a positive uid match. `!c.uid ||` would flip pre-upgrade history
+      // entries (written before uid was recorded) on any unrelated sync.
+      const allIn = h.cheques.every(c => c.uid && syncedUids.has(c.uid));
       if (allIn) h.offline = false;
     });
     saveSessionHistory();
     renderHistory();
   }
 
-  if (permanentlyFailed.length > 0) {
-    showToast('⚠️ ' + permanentlyFailed.length + ' queued cheque(s) were NOT recorded — ' + permanentlyFailed[0].reason);
-    console.warn('[cheque] queued cheques rejected by server:', permanentlyFailed);
-  } else if (synced > 0 && !blocked) {
-    showToast('✅ Synced ' + synced + ' pickup(s)');
-  }
+  // One combined message — showToast replaces its own text, so firing several in
+  // the same tick would destroy exactly the part the user needs to read.
+  const parts = [];
+  if (synced > 0) parts.push('✅ ' + synced + ' pickup(s) synced');
+  if (permanentlyFailed.length > 0) parts.push('⚠️ ' + permanentlyFailed.length + ' cheque(s) NOT recorded (' + permanentlyFailed[0].reason + ')');
+  if (blocked) parts.push('⏸ paused: ' + blocked + ' — ' + offlineQueue.length + ' still queued, will retry');
+  if (parts.length) showToast(parts.join(' · '));
 
-  if (blocked) {
-    showToast('⚠️ Sync paused: ' + blocked + ' — ' + offlineQueue.length + ' pickup(s) still queued, will retry');
+  if (permanentlyFailed.length > 0) console.warn('[cheque] queued cheques rejected by server:', permanentlyFailed);
+
+  if (deadLettered.length > 0) {
+    console.error('[cheque] queued pickups abandoned after repeated failures:', deadLettered);
+    let bar = document.getElementById('deadLetterBar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'deadLetterBar';
+      bar.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:401;background:#c4463a;color:#fff;'
+        + 'padding:12px 16px;font-size:13px;font-weight:600;line-height:1.45;box-shadow:0 -4px 20px rgba(0,0,0,.25);'
+        + 'display:flex;align-items:flex-start;gap:12px';
+      document.body.appendChild(bar);
+    }
+    const chqList = deadLettered
+      .flatMap(d => (d.item && d.item.cheques) ? d.item.cheques.map(c => c.chqNo) : [])
+      .filter(Boolean);
+    bar.innerHTML = '<span style="flex:1">⚠️ ' + deadLettered.length + ' offline pickup(s) could not be synced and have been set aside — '
+      + escapeHtml(deadLettered[0].reason) + '. Cheque(s): ' + escapeHtml(chqList.join(', ') || 'see console')
+      + '. These were handed over but are NOT recorded — record them manually.</span>'
+      + '<button id="deadLetterDismiss" style="background:rgba(255,255,255,.2);color:#fff;border:none;'
+      + 'border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0">Dismiss</button>';
+    document.getElementById('deadLetterDismiss').addEventListener('click', () => bar.remove());
   }
   updateOfflineBar();
 }
