@@ -635,6 +635,22 @@ body {
 }
 
 .posts-list { display:flex; flex-direction:column; gap:10px; }
+.posts-clientbar { display:flex; gap:10px; align-items:center; margin-bottom:12px; flex-wrap:wrap; }
+.posts-clientbar .filter-select { min-width:190px; max-width:100%; }
+.posts-groupby { display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:var(--text-secondary); cursor:pointer; user-select:none; }
+.posts-groupby input { width:15px; height:15px; accent-color:var(--accent); cursor:pointer; }
+.posts-clientgroup { margin-top:6px; }
+.posts-clientgroup-head {
+  display:flex; align-items:center; gap:8px; padding:7px 12px; margin-bottom:8px;
+  background:var(--accent-soft); border-radius:8px;
+  font-size:13px; font-weight:700; color:var(--accent-text);
+}
+.posts-clientgroup-head .cg-count { margin-left:auto; font-size:11px; font-weight:700; color:var(--text-secondary); background:var(--surface); padding:2px 9px; border-radius:9999px; }
+/* Client-led card header: the client is the subject of the inquiry, the recruiter
+   who raised it is context. */
+.post-client { font-size:15px; font-weight:700; color:var(--text); line-height:1.25; word-break:break-word; }
+.post-employee { font-size:13px; font-weight:600; color:var(--accent-text); margin-top:1px; }
+.post-raisedby { font-size:11px; color:var(--text-tertiary); margin-top:2px; }
 .posts-empty {
   text-align:center; padding:32px 16px; color:var(--text-tertiary);
   font-size:13px; font-weight:500;
@@ -1157,6 +1173,88 @@ body {
 .qr-code-wrap { background: #fff; border-radius: 12px; padding: 12px; display: inline-block; margin: 4px 0; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
 .qr-code-wrap canvas, .qr-code-wrap img { display: block; }
 .qr-success-hint { font-size: 11px; color: var(--text-muted); opacity: .7; }
+
+/* ========== QR ACTION ROW ========== */
+.qr-actions { display:flex; gap:8px; margin-top:6px; flex-wrap:wrap; justify-content:center; }
+.btn-share-qr-secondary { background:var(--bg-secondary) !important; color:var(--text-secondary) !important; border:1px solid var(--border) !important; }
+.btn-share-qr-secondary:hover { background:var(--surface-hover) !important; }
+
+/* ========== WEEK NOTES ========== */
+.week-notes {
+  margin:12px 16px 0; border:1.5px solid var(--border); border-left:3px solid var(--accent);
+  border-radius:var(--radius); background:var(--surface); overflow:hidden;
+  animation:fadeUp .25s cubic-bezier(.16,1,.3,1);
+}
+.wn-head { display:flex; align-items:center; gap:8px; padding:10px 14px; cursor:pointer; user-select:none; }
+.wn-head:hover { background:var(--surface-hover); }
+.wn-icon { width:15px; height:15px; color:var(--accent); flex-shrink:0; }
+.wn-title { font-size:12px; font-weight:700; letter-spacing:.3px; text-transform:uppercase; color:var(--text-secondary); }
+.wn-count { font-size:11px; color:var(--text-tertiary); font-weight:600; }
+.wn-edit {
+  margin-left:auto; background:var(--accent-soft); color:var(--accent-text); border:none;
+  border-radius:6px; padding:4px 11px; font-size:11px; font-weight:700; cursor:pointer;
+  font-family:var(--font); transition:var(--transition);
+}
+.wn-edit:hover { background:var(--accent); color:#fff; }
+.wn-chev { width:15px; height:15px; color:var(--text-tertiary); transition:transform .2s; flex-shrink:0; }
+.week-notes.collapsed .wn-chev { transform:rotate(-90deg); }
+.week-notes.collapsed .wn-body { display:none; }
+.wn-body { padding:0 14px 12px; }
+.wn-item + .wn-item { margin-top:10px; padding-top:10px; border-top:1px solid var(--border-light); }
+.wn-scope { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--blue); background:var(--blue-soft); padding:2px 7px; border-radius:5px; display:inline-block; margin-bottom:5px; }
+.wn-text { font-size:13.5px; line-height:1.5; color:var(--text); white-space:pre-wrap; word-break:break-word; }
+.wn-meta { font-size:11px; color:var(--text-tertiary); margin-top:5px; }
+.wn-empty { font-size:13px; color:var(--text-tertiary); font-style:italic; }
+
+/* ========== REPORTS ========== */
+.reports-overlay { position:fixed; inset:0; z-index:210; background:var(--bg); overflow-y:auto; }
+.rp-head {
+  position:sticky; top:0; z-index:2; background:var(--header-bg); color:var(--header-text);
+  padding:14px 20px; display:flex; align-items:center; gap:12px;
+}
+.rp-head h2 { font-family:var(--font-display); font-size:18px; font-weight:500; }
+.rp-close {
+  margin-left:auto; background:rgba(255,255,255,.1); color:#fff; border:none;
+  border-radius:8px; padding:8px 14px; font-size:13px; font-weight:600; cursor:pointer; font-family:var(--font);
+}
+.rp-close:hover { background:rgba(255,255,255,.2); }
+.rp-tabs { display:flex; gap:6px; padding:14px 20px 0; flex-wrap:wrap; }
+.rp-tab {
+  padding:8px 16px; border-radius:9999px; border:1.5px solid var(--border);
+  background:var(--surface); color:var(--text-secondary); font-size:13px; font-weight:600;
+  cursor:pointer; font-family:var(--font); transition:var(--transition);
+}
+.rp-tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+.rp-controls { display:flex; gap:10px; align-items:center; padding:14px 20px 0; flex-wrap:wrap; }
+.rp-body { padding:16px 20px 40px; }
+.rp-stats { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+.rp-stat { background:var(--surface); border:1.5px solid var(--border); border-radius:var(--radius); padding:12px 16px; min-width:130px; }
+.rp-stat-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--text-tertiary); }
+.rp-stat-value { font-size:20px; font-weight:700; font-family:var(--mono); color:var(--text); margin-top:3px; }
+.rp-stat.warn .rp-stat-value { color:var(--red); }
+.rp-table-wrap { background:var(--surface); border:1.5px solid var(--border); border-radius:var(--radius); overflow-x:auto; }
+table.rp-table { width:100%; border-collapse:collapse; font-size:13px; }
+table.rp-table thead th {
+  text-align:left; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px;
+  color:var(--text-tertiary); padding:10px 12px; border-bottom:1.5px solid var(--border);
+  position:sticky; top:0; background:var(--surface); white-space:nowrap;
+}
+table.rp-table thead th.r, table.rp-table td.r { text-align:right; }
+table.rp-table tbody td { padding:9px 12px; border-bottom:1px solid var(--border-light); }
+table.rp-table tbody tr:hover { background:var(--surface-hover); }
+table.rp-table td.mono { font-family:var(--mono); font-size:12px; }
+.rp-age { font-size:10px; font-weight:700; padding:2px 7px; border-radius:9999px; white-space:nowrap; }
+.rp-age.fresh { color:var(--green-text); background:var(--green-soft); }
+.rp-age.warn { color:var(--yellow); background:var(--yellow-bg); }
+.rp-age.stale { color:var(--red); background:var(--red-soft); }
+.rp-empty { text-align:center; padding:40px 20px; color:var(--text-tertiary); font-size:14px; }
+.rp-loading { text-align:center; padding:40px 20px; color:var(--text-secondary); font-size:14px; animation:pulse 1.4s infinite; }
+@media (max-width:640px) {
+  .rp-body { padding:12px; }
+  .rp-controls, .rp-tabs { padding-left:12px; padding-right:12px; }
+  table.rp-table { font-size:12px; }
+  table.rp-table tbody td { padding:8px 8px; }
+}
 .btn-share-qr { display: flex; align-items: center; gap: 7px; background: var(--primary); color: #fff; border: none; border-radius: 10px; padding: 10px 18px; font-size: 13px; font-weight: 600; cursor: pointer; margin-top: 4px; transition: opacity .15s; }
 .btn-share-qr:hover { opacity: .88; }
 
@@ -1538,6 +1636,9 @@ body {
           <div class="kbd-row"><span>Close / Cancel</span><span class="kbd-key">Esc</span></div>
         </div>
       </div>
+      <button class="btn-icon hidden" id="reportsBtn" title="Reports">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      </button>
       <button class="btn-icon hidden" id="adminBtn" title="Upload Payroll">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       </button>
@@ -1568,6 +1669,18 @@ body {
 
     <div class="desktop-layout">
       <div class="col-left">
+        <!-- WEEK NOTES — shared reference note for the selected week + office -->
+        <div class="week-notes hidden" id="weekNotes">
+          <div class="wn-head" id="wnHead">
+            <svg class="wn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <span class="wn-title" id="wnTitle">Week notes</span>
+            <span class="wn-count" id="wnCount"></span>
+            <button class="wn-edit" id="wnEditBtn" title="Add or edit the note for this week and office">Edit</button>
+            <svg class="wn-chev" id="wnChev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="wn-body" id="wnBody"></div>
+        </div>
+
         <div class="dashboard" id="dashboard">
           <div class="welcome">
             <div class="welcome-greeting">Welcome to</div>
@@ -1602,6 +1715,10 @@ body {
               <button class="posts-filter-pill" data-filter="missing_hours">⏱ Missing Hours Queries <span class="pf-count" id="pfCountMH">0</span></button>
               <button class="posts-filter-pill" data-filter="broadcast">📢 Broadcasts <span class="pf-count" id="pfCountBC">0</span></button>
               <button class="posts-filter-pill" data-filter="resolved">✓ Resolved <span class="pf-count" id="pfCountRes">0</span></button>
+            </div>
+            <div class="posts-clientbar" id="postsClientBar">
+              <select class="filter-select" id="postsClientFilter"><option value="ALL">All clients</option></select>
+              <label class="posts-groupby"><input type="checkbox" id="postsGroupBy"> Group by client</label>
             </div>
             <div class="posts-list" id="postsList"></div>
             </div><!-- /staffBoardBody -->
@@ -1686,10 +1803,16 @@ body {
                 <div class="qr-success-sub" id="qrSuccessSub">Employee can scan to get receipt</div>
                 <div class="qr-code-wrap" id="qrCodeContainer"></div>
                 <div class="qr-success-hint">Point phone camera at code</div>
-                <button class="btn-share-qr" id="shareReceiptQrBtn">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-                  Share Receipt Link
-                </button>
+                <div class="qr-actions">
+                  <button class="btn-share-qr" id="printReceiptQrBtn" title="Print the receipt with this QR code on it">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                    Print Receipt
+                  </button>
+                  <button class="btn-share-qr btn-share-qr-secondary" id="shareReceiptQrBtn">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                    Share Link
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1839,7 +1962,9 @@ body {
     </div>
     <div class="pf-group">
       <div class="pf-label">Client</div>
-      <input class="pf-input" id="pfMHClient" type="text" placeholder="Company name">
+      <input class="pf-input" id="pfMHClient" type="text" list="pfMHClientList" placeholder="Start typing the client name" autocomplete="off">
+      <datalist id="pfMHClientList"></datalist>
+      <div style="font-size:11px;color:var(--text-tertiary);margin-top:4px">Pick from the list where you can — consistent client names are what make the per-client view work.</div>
     </div>
     <div class="pf-row">
       <div class="pf-group">
@@ -1894,6 +2019,50 @@ body {
       <button class="pf-btn pf-btn-submit" id="pfBCSubmit">Post Message</button>
     </div>
   </div>
+</div>
+
+<!-- WEEK NOTE EDITOR -->
+<div class="modal-overlay hidden" id="weekNoteModal">
+  <div class="modal" style="max-width:520px">
+    <h3>📌 Week note</h3>
+    <div class="pf-group" style="margin-bottom:12px">
+      <div class="pf-label">Who is this note for?</div>
+      <select class="filter-select" id="wnScope" style="width:100%"></select>
+    </div>
+    <textarea id="wnTextarea" placeholder="e.g. Angstrom cheques arrive Wednesday — do not tell workers Monday." style="width:100%;min-height:130px;padding:12px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:14px;font-family:var(--font);background:var(--bg);color:var(--text);resize:vertical;outline:none"></textarea>
+    <div style="font-size:11px;color:var(--text-tertiary);margin-top:6px">Everyone who can see this office can read and edit this note. Your name is recorded against it. Clear the box and save to delete it.</div>
+    <div class="upload-error hidden" id="wnError"></div>
+    <div class="modal-actions" style="margin-top:16px">
+      <button class="btn-modal btn-modal-secondary" id="wnCancelBtn">Cancel</button>
+      <button class="btn-modal btn-modal-primary" id="wnSaveBtn">Save note</button>
+    </div>
+  </div>
+</div>
+
+<!-- REPORTS -->
+<div class="reports-overlay hidden" id="reportsScreen">
+  <div class="rp-head">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    <h2>Reports</h2>
+    <button class="rp-close" id="rpCloseBtn">✕ Close</button>
+  </div>
+  <div class="rp-tabs">
+    <button class="rp-tab active" data-rp-tab="outstanding">Outstanding cheques</button>
+    <button class="rp-tab" data-rp-tab="clients">By client</button>
+  </div>
+  <div class="rp-controls">
+    <select class="filter-select" id="rpWeeks">
+      <option value="4">Last 4 weeks</option>
+      <option value="8" selected>Last 8 weeks</option>
+      <option value="13">Last 13 weeks</option>
+      <option value="26">Last 26 weeks</option>
+    </select>
+    <select class="filter-select" id="rpOffice"><option value="ALL">All offices</option></select>
+    <input type="text" class="pf-input" id="rpSearch" placeholder="Filter by name, client or cheque #" style="max-width:280px">
+    <button class="btn-modal btn-modal-secondary" id="rpRefreshBtn" style="padding:9px 16px;font-size:13px">Refresh</button>
+    <button class="btn-modal btn-modal-primary" id="rpExportBtn" style="padding:9px 16px;font-size:13px">⬇ Export</button>
+  </div>
+  <div class="rp-body" id="rpBody"><div class="rp-loading">Loading…</div></div>
 </div>
 
 <!-- TOAST -->
@@ -1977,6 +2146,8 @@ function isViewFresh(key) {
 }
 let postsData = [];            // all visible posts
 let postsFilter = 'all';       // current filter: all | missing_hours | broadcast | resolved
+let postsClientFilter = 'ALL'; // client lens over the board
+let postsGroupByClient = false;
 let postsLoading = false;
 
 // =============================================
@@ -2097,6 +2268,10 @@ function applyUserRole() {
   $('headerUserRole').textContent = currentUser.role === 'admin' ? 'Admin' : 'Staff';
   // Show/hide admin button
   $('adminBtn').classList.toggle('hidden', currentUser.role !== 'admin');
+  // Reports capability comes from the _Users sheet (column "Reports"), never from
+  // a PIN in this file — index.html is public, so a PIN here would be published.
+  // Hiding the button is convenience only; every report endpoint re-checks it.
+  $('reportsBtn').classList.toggle('hidden', !currentUser.canViewReports);
   // Distributor name in confirm form
   $('distributorName').textContent = currentUser.name;
   // Welcome dashboard (welcomeName element removed in collector-focused redesign)
@@ -2123,6 +2298,11 @@ $('staffBoardToggle').addEventListener('click', function() { toggleStaffBoard();
 
 let _dashWasHidden = false;
 function updateDashboard() {
+  // Week notes carry internal instructions ("hold everything for Flynn"). Hide
+  // them as soon as a search starts, for the same reason the staff board
+  // auto-collapses — the next collector is standing at the window.
+  var wnBox = $('weekNotes');
+  if (wnBox) wnBox.classList.toggle('hidden', searchInput.value.trim().length > 0 || !weekFilter.value || !pin);
   const hasSearch = searchInput.value.trim().length > 0;
   $('dashboard').classList.toggle('hidden', hasSearch);
   if (hasSearch) {
@@ -2148,6 +2328,17 @@ function doLogout() {
   loadedViews.clear(); viewLoadedAt.clear();
   postsData = [];
   postsFilter = 'all';
+  postsClientFilter = 'ALL';
+  postsGroupByClient = false;
+  weekNotesData = [];
+  weekNotesError = false;
+  rpData = { outstanding: null, clients: null };
+  $('reportsScreen').classList.add('hidden');
+  $('weekNoteModal').classList.add('hidden');
+  $('weekNotes').classList.add('hidden');
+  $('reportsBtn').classList.add('hidden');
+  var gb = $('postsGroupBy'); if (gb) gb.checked = false;
+  var cf = $('postsClientFilter'); if (cf) cf.value = 'ALL';
   // FIX: clear in-memory offline queue so the next user can't sync the previous
   // user's queued pickups under their own PIN (persisted copy stays under the
   // original PIN's localStorage key and syncs when that user logs back in)
@@ -2290,12 +2481,21 @@ document.addEventListener('keydown', e => {
   const tag = e.target.tagName;
   const inInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 
+  // Reports is a full-screen surface a manager sits in for minutes; letting the
+  // single-key shortcuts through would let Enter confirm a pickup, or x clear the
+  // cart, invisibly behind the overlay.
+  const reportsOpen = !$('reportsScreen').classList.contains('hidden');
+  if (reportsOpen && e.key !== 'Escape') return;
+
   // Escape works even in inputs — context-dependent close
   if (e.key === 'Escape') {
+    // Close Reports first, and stop — the fall-through below would otherwise also
+    // clear the search that was on screen before Reports was opened.
+    if (reportsOpen) { closeReports(); e.preventDefault(); return; }
     // Close modals first (highest priority)
     const modals = [
       $('postFormMH'), $('postFormBC'),
-      $('commentModal'), $('webcamModal'), $('adminModal'), $('holdModal')
+      $('commentModal'), $('webcamModal'), $('adminModal'), $('holdModal'), $('weekNoteModal')
     ];
     for (const m of modals) {
       if (m && !m.classList.contains('hidden')) {
@@ -2508,6 +2708,7 @@ function postLoginSetup() {
   updateDesktopCartEmpty();
   updateMobileCartBar();
   loadPosts();
+  loadWeekNotes();
   applyLoadCart(); // Load shared cart from URL if present
 }
 
@@ -2854,6 +3055,7 @@ function updateOfficeFilter() {
 
 weekFilter.addEventListener('change', async () => {
   updateOfficeFilter();
+  loadWeekNotes();
   const selectedWeek = weekFilter.value;
   const selectedOffice = officeFilter.value;
   if (selectedWeek) {
@@ -2863,6 +3065,7 @@ weekFilter.addEventListener('change', async () => {
 });
 
 officeFilter.addEventListener('change', async () => {
+  renderWeekNotes();
   const selectedWeek = weekFilter.value;
   const selectedOffice = officeFilter.value;
   if (selectedWeek) {
@@ -3535,6 +3738,9 @@ async function viewReceipt(receiptId) {
   // Write receipt into the already-open window
   // FIX: no auto-print — "view receipt" used to immediately open the print
   // dialog and close the tab after; now there's a Print button instead
+  if (receipt.receiptId || receiptId) {
+    receipt.qrImg = await qrDataUrl(BASE_URL + '?receipt=' + encodeURIComponent(receipt.receiptId || receiptId));
+  }
   const html = buildReceiptHtml(receipt, false);
   w.document.open(); w.document.write(html); w.document.close();
 }
@@ -3623,6 +3829,9 @@ function buildReceiptHtml(data, autoPrint) {
     '.btn-share svg{flex-shrink:0}' +
     '@media print{.share-bar{display:none!important}}' +
     '.rid{font-size:7.5px;color:#bbb;margin-top:3px}' +
+    '.qr-block{margin-top:18px;text-align:center;page-break-inside:avoid}' +
+    '.qr-block img{display:inline-block;border:1px solid #eee;padding:5px;background:#fff}' +
+    '.qr-cap{font-size:8.5px;color:#999;margin-top:4px}' +
     '@media print{.no-print{display:none!important}}' +
   '</style></head><body>' +
     voidBannerHtml +
@@ -3644,6 +3853,12 @@ function buildReceiptHtml(data, autoPrint) {
       ) +
       '<div class="sig-line"><span class="sig-label">Date / Time:</span>' + (timestamp ? '<span class="sig-filled">' + escapeHtml(timestamp) + '</span>' : '<span class="sig-blank"></span>') + '</div>' +
     '</div>' +
+    // A QR printed on the receipt itself, so the paper copy stays scannable and
+    // the code is recoverable long after the on-screen panel has gone.
+    (data.qrImg
+      ? '<div class="qr-block"><img src="' + escapeHtml(data.qrImg) + '" alt="Receipt QR code" width="132" height="132">'
+        + '<div class="qr-cap">Scan for a digital copy of this receipt</div></div>'
+      : '') +
     (receiptId ? '<div class="rid">Ref: ' + escapeHtml(receiptId) + '</div>' : '') +
     (function(){
       // FIX: the share URL used to be concatenated into an inline onclick handler.
@@ -3651,7 +3866,10 @@ function buildReceiptHtml(data, autoPrint) {
       // containing one broke out of the JS string literal and ran as code. The URL
       // now travels in an escaped data attribute and is bound by a listener below.
       var shareBtn = shareUrl ? '<button class="btn-share" data-share-url="' + escapeHtml(shareUrl) + '"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg> Share Receipt</button>' : '';
-      var printBtn = autoPrint ? '' : '<button class="btn-share" data-print="1" style="margin-left:8px;background:#c87b35">🖨 Print</button>';
+      // Always offered — with auto-print no longer closing the window, a cancelled
+      // dialog needs a way back.
+      var printBtn = '<button class="btn-share" data-print="1" style="margin-left:8px;background:#c87b35">🖨 Print</button>'
+        + '<button class="btn-share" data-close="1" style="margin-left:8px;background:#6b6a65">✕ Close</button>';
       return (shareBtn || printBtn) ? '<div class="share-bar">' + shareBtn + printBtn + '</div>' : '';
     })() +
     '<div class="footer">Apex Personnel — ' + title + '</div>' +
@@ -3664,8 +3882,17 @@ function buildReceiptHtml(data, autoPrint) {
       '});}' +
       'var p=document.querySelector(".btn-share[data-print]");' +
       'if(p){p.addEventListener("click",function(){window.print();});}' +
+      'var c=document.querySelector(".btn-share[data-close]");' +
+      'if(c){c.addEventListener("click",function(){window.close();});}' +
     '})();<\/script>' +
-    (autoPrint ? '<script>window.onafterprint=function(){window.close()};window.print()<\/script>' : '') +
+    // Auto-print waits for the QR image to decode before opening the dialog, and
+    // deliberately does NOT close the window afterwards: onafterprint also fires
+    // on Cancel, which used to slam the tab shut on anyone who wanted to check
+    // the total or pick a different printer first. The in-page Print button
+    // stays available for a retry.
+    (autoPrint
+      ? '<script>window.addEventListener("load",function(){setTimeout(function(){window.print();},250);});<\/script>'
+      : '') +
   '</body></html>';
 
   return html;
@@ -3848,7 +4075,7 @@ confirmBtn.addEventListener('click', async () => {
         showToast(msg);
         if (confirmedUids.size > 0) {
           playConfirmSound();
-          addToHistory('', timestamp, sel.filter(c => confirmedUids.has(c.uid)), false, true, voidedBy);
+          addToHistory('', timestamp, sel.filter(c => confirmedUids.has(c.uid)), false, true, voidedBy, receiptId);
           reportPostConfirmProblems(res, !!photoDataUrl);
         }
       } catch (err) {
@@ -3945,7 +4172,7 @@ confirmBtn.addEventListener('click', async () => {
         showToast(msg);
         if (confirmedUids.size > 0) {
           playConfirmSound();
-          addToHistory(collector, timestamp, sel.filter(c => confirmedUids.has(c.uid)), false, false, '');
+          addToHistory(collector, timestamp, sel.filter(c => confirmedUids.has(c.uid)), false, false, '', receiptId);
           // FIX: cache the receipt only AFTER the server responds, and only with
           // the cheques it actually accepted. It used to be cached from the whole
           // cart before the request, so a failed or partial confirm left a
@@ -4074,11 +4301,11 @@ function playConfirmSound() {
 // =============================================
 // HISTORY
 // =============================================
-function addToHistory(collector, timestamp, cheques, offline, isVoid, voidedBy) {
+function addToHistory(collector, timestamp, cheques, offline, isVoid, voidedBy, receiptId) {
   const distributor = currentUser ? currentUser.name : '';
   // uid is carried so syncOfflineQueue can clear the "queued" flag only for
   // cheques the server actually accepted, instead of blanket-clearing them all.
-  sessionHistory.unshift({ distributor, collector, timestamp, offline, isVoid: !!isVoid, voidedBy: voidedBy || '', cheques: cheques.map(c => ({ uid: c.uid, chqNo: c.chqNo, name: c.lastName + ' ' + c.firstName, week: c.week, office: c.office })) });
+  sessionHistory.unshift({ distributor, collector, timestamp, offline, isVoid: !!isVoid, voidedBy: voidedBy || '', receiptId: receiptId || '', cheques: cheques.map(c => ({ uid: c.uid, chqNo: c.chqNo, name: c.lastName + ' ' + c.firstName, week: c.week, office: c.office })) });
   saveSessionHistory(); renderHistory();
 }
 function renderHistory() {
@@ -4094,6 +4321,16 @@ function renderHistory() {
       if (h.distributor) names.push('<span style="color:var(--accent-text)">' + escapeHtml(h.distributor) + '</span> → ');
       names.push('<span class="hi-collector">' + escapeHtml(h.collector) + '</span>');
       div.innerHTML = '<div class="hi-top">' + names.join('') + '<span class="hi-time">' + escapeHtml(h.timestamp) + '</span></div><div class="hi-cheques">' + h.cheques.map(c => '<span>' + escapeHtml(c.chqNo) + '</span> ' + escapeHtml(c.name)).join(' · ') + '</div>' + (h.offline ? '<div class="hi-offline">⚡ Queued offline</div>' : '');
+    }
+    // Re-open a past handover's receipt (and its QR). The on-screen QR panel
+    // clears as soon as the next search is typed, so this is how it is recovered.
+    if (h.receiptId && !h.offline) {
+      const rb = document.createElement('button');
+      rb.className = 'btn-view-receipt';
+      rb.style.cssText = 'margin-top:6px';
+      rb.textContent = '🧾 Receipt / QR';
+      rb.addEventListener('click', () => viewReceipt(h.receiptId));
+      div.appendChild(rb);
     }
     historyList.appendChild(div);
   });
@@ -4451,6 +4688,172 @@ modalUploadBtn.addEventListener('click', async () => {
 });
 
 // =============================================
+// WEEK NOTES
+// =============================================
+// A shared reference note per payroll week + office. Editable by anyone who can
+// see the office (shift handover is the main use), with the last editor recorded.
+
+let weekNotesData = [];
+let weekNotesLoading = false;
+let weekNotesError = false;
+let weekNotesReqId = 0;      // supersedes in-flight loads instead of dropping new ones
+
+async function loadWeekNotes() {
+  const week = weekFilter.value;
+  if (!week || !pin) return;
+  // Generation token: a second week change used to be dropped while the first
+  // request was in flight, so the older response landed and its note was
+  // rendered under the newer week's heading — and nothing ever refetched.
+  const myReq = ++weekNotesReqId;
+  weekNotesLoading = true;
+  try {
+    const res = await api({ action: 'getWeekNotes', week: week });
+    if (myReq !== weekNotesReqId || weekFilter.value !== week) return; // superseded
+    if (res && res.error) { weekNotesData = []; weekNotesError = true; }
+    else { weekNotesData = (res && res.notes) || []; weekNotesError = false; }
+  } catch (e) {
+    if (myReq !== weekNotesReqId) return;
+    weekNotesData = []; weekNotesError = true;
+  } finally {
+    if (myReq === weekNotesReqId) weekNotesLoading = false;
+  }
+  renderWeekNotes();
+}
+
+function renderWeekNotes() {
+  const box = $('weekNotes');
+  if (!box) return;
+  const week = weekFilter.value;
+  const office = officeFilter.value || 'ALL';
+  if (!week || !pin) { box.classList.add('hidden'); return; }
+
+  // Show the company-wide note plus the one for the selected office.
+  // Match the way the backend grants access (case-insensitive, either-contains),
+  // otherwise a note saved under the _Users office label disappears whenever the
+  // sheet's normalised office name differs even slightly.
+  const officeish = (a, b) => {
+    const x = String(a || '').toLowerCase().trim(), y = String(b || '').toLowerCase().trim();
+    return !!x && !!y && (x === y || x.indexOf(y) !== -1 || y.indexOf(x) !== -1);
+  };
+  const visible = weekNotesData.filter(n =>
+    n.office === 'ALL' || office === 'ALL' || officeish(n.office, office));
+
+  $('wnTitle').textContent = 'Week notes · ' + week;
+  $('wnCount').textContent = visible.length ? '(' + visible.length + ')' : '';
+
+  if (weekNotesError) {
+    // A failed fetch must never look like a confirmed absence of a note — the
+    // note may say "hold everything for Flynn".
+    $('wnBody').innerHTML = '<div class="wn-empty" style="color:var(--red)">⚠️ Could not load notes for this week. Do not assume there are none — refresh to retry.</div>';
+  } else if (visible.length === 0) {
+    $('wnBody').innerHTML = '<div class="wn-empty">No notes for this week yet — use Edit to add one.</div>';
+  } else {
+    $('wnBody').innerHTML = visible.map(n => {
+      const when = n.updatedAt ? formatPostTime(n.updatedAt) : '';
+      return '<div class="wn-item">'
+        + '<span class="wn-scope">' + escapeHtml(n.office === 'ALL' ? 'All offices' : n.office) + '</span>'
+        + '<div class="wn-text">' + escapeHtml(n.note) + '</div>'
+        + '<div class="wn-meta">' + escapeHtml(n.updatedBy || '?') + (when ? ' · ' + escapeHtml(when) : '') + '</div>'
+        + '</div>';
+    }).join('');
+  }
+  // Never un-hide over an active search — see updateDashboard().
+  box.classList.toggle('hidden', searchInput.value.trim().length > 0);
+}
+
+$('wnHead').addEventListener('click', function(e) {
+  if (e.target.closest('#wnEditBtn')) return;
+  $('weekNotes').classList.toggle('collapsed');
+});
+
+// The scope is chosen explicitly rather than inherited from the office dropdown.
+// That dropdown defaults to "All offices", so inheriting it meant the ordinary
+// path wrote (and could blank) the company-wide note without anyone choosing to.
+function populateNoteScopeOptions() {
+  const sel = $('wnScope');
+  const isAdmin = currentUser && (currentUser.role === 'admin' || currentUser.allOffices);
+  const opts = [];
+  if (isAdmin) opts.push({ v: 'ALL', l: 'All offices (company-wide)' });
+
+  const offices = new Set();
+  if (currentUser && currentUser.offices) currentUser.offices.forEach(o => offices.add(o));
+  // Admins can target any office present in the current week.
+  if (isAdmin) {
+    const w = weekFilter.value;
+    (weeksData[w] || []).forEach(o => offices.add(o));
+  }
+  // Admins can also target any office visible in the currently loaded data, which
+  // covers the case where weeksData has not been refreshed.
+  if (isAdmin) {
+    allCheques.forEach(c => { if (c.week === weekFilter.value && c.office) offices.add(c.office); });
+  }
+  Array.from(offices).sort().forEach(o => opts.push({ v: o, l: o }));
+
+  sel.innerHTML = opts.map(o => '<option value="' + escapeHtml(o.v) + '">' + escapeHtml(o.l) + '</option>').join('');
+
+  // A user with no office of their own (client-scoped access) has nothing they
+  // may write to. Say so plainly rather than offering a dropdown that dead-ends
+  // in "Pick an office" or a backend "Access denied".
+  const writable = opts.length > 0;
+  $('wnSaveBtn').disabled = !writable;
+  $('wnTextarea').disabled = !writable;
+  if (!writable) {
+    $('wnError').textContent = 'Your account is scoped to clients rather than an office, so you can read week notes but not write them. Ask an admin to add your office in the user list.';
+    $('wnError').classList.remove('hidden');
+  }
+
+  // Preselect the office currently being viewed when that is one of the choices.
+  const cur = officeFilter.value;
+  if (cur && cur !== 'ALL' && sel.querySelector('option[value="' + CSS.escape(cur) + '"]')) sel.value = cur;
+  else if (!isAdmin && sel.options.length) sel.value = sel.options[0].value;
+}
+
+function loadNoteForScope() {
+  const scope = $('wnScope').value;
+  const existing = weekNotesData.find(n => n.office === scope);
+  $('wnTextarea').value = existing ? existing.note : '';
+}
+
+$('wnScope').addEventListener('change', loadNoteForScope);
+
+$('wnEditBtn').addEventListener('click', function() {
+  if (!weekFilter.value) { showToast('Pick a week first'); return; }
+  $('wnError').classList.add('hidden');
+  $('wnSaveBtn').disabled = false;
+  $('wnTextarea').disabled = false;
+  populateNoteScopeOptions();
+  loadNoteForScope();
+  $('wnError').classList.add('hidden');
+  $('weekNoteModal').classList.remove('hidden');
+  setTimeout(() => $('wnTextarea').focus(), 50);
+});
+
+$('wnCancelBtn').addEventListener('click', () => $('weekNoteModal').classList.add('hidden'));
+$('weekNoteModal').addEventListener('click', e => { if (e.target === $('weekNoteModal')) $('weekNoteModal').classList.add('hidden'); });
+
+$('wnSaveBtn').addEventListener('click', async function() {
+  const office = $('wnScope').value;
+  const week = weekFilter.value;
+  const note = $('wnTextarea').value.trim();
+  if (!office) { $('wnError').textContent = 'Pick which office this note is for'; $('wnError').classList.remove('hidden'); return; }
+  $('wnSaveBtn').disabled = true;
+  $('wnError').classList.add('hidden');
+  try {
+    const res = await api({ action: 'saveWeekNote', week: week, office: office, note: note });
+    if (res && res.error) {
+      $('wnError').textContent = res.error; $('wnError').classList.remove('hidden');
+    } else {
+      $('weekNoteModal').classList.add('hidden');
+      showToast(note ? '✅ Note saved' : '✅ Note cleared');
+      await loadWeekNotes();
+    }
+  } catch (e) {
+    $('wnError').textContent = 'Failed: ' + e.message; $('wnError').classList.remove('hidden');
+  }
+  $('wnSaveBtn').disabled = false;
+});
+
+// =============================================
 // POSTS / BULLETIN BOARD
 // =============================================
 async function loadPosts() {
@@ -4463,6 +4866,65 @@ async function loadPosts() {
     renderPosts();
   } catch(e) { /* silent */ }
   postsLoading = false;
+}
+
+// Normalised client key. Client names are typed free-hand across 294 distinct
+// strings in the payroll data, so grouping on the raw value would splinter the
+// same client into several buckets. This collapses case, punctuation and the
+// usual company suffixes so "Polyethics Industrie Ltd" and "polyethics industrie"
+// land together. Display always uses the original text.
+function normClient(v) {
+  // Case, punctuation and spacing only. An earlier version also stripped company
+  // suffixes (inc/ltd/group/holdings/...), which merged "Maple Foods Group" into
+  // "Maple Foods Ltd" — routinely separate billing entities — and reduced a
+  // client actually named "Corporation" to an empty key that could never be
+  // selected. Variants of the SAME name still collapse, which is the point.
+  return String(v || '')
+    .toLowerCase()
+    .replace(/[.,'"()]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Rebuild the client dropdown from whatever clients currently have inquiries.
+function refreshPostsClientOptions() {
+  var sel = $('postsClientFilter');
+  if (!sel) return;
+  var byKey = {};
+  postsData.forEach(function(p) {
+    if (p.type !== 'missing_hours') return;
+    var k = normClient(p.client);
+    if (!k) return;
+    if (!byKey[k]) byKey[k] = { label: String(p.client).trim(), n: 0 };
+    byKey[k].n++;
+  });
+  var keys = Object.keys(byKey).sort(function(a, b) { return byKey[a].label.localeCompare(byKey[b].label); });
+  var prev = sel.value;
+  var html = '<option value="ALL">All clients</option>';
+  keys.forEach(function(k) {
+    html += '<option value="' + escapeHtml(k) + '">' + escapeHtml(byKey[k].label) + ' (' + byKey[k].n + ')</option>';
+  });
+  sel.innerHTML = html;
+  if (prev && sel.querySelector('option[value="' + CSS.escape(prev) + '"]')) sel.value = prev;
+  else if (prev !== 'ALL' && prev) { postsClientFilter = 'ALL'; sel.value = 'ALL'; }
+}
+
+// Client names for the missing-hours form, taken from the payroll data actually
+// loaded — typing against a real list is what keeps the per-client view coherent.
+function populateMHClientDatalist() {
+  var dl = $('pfMHClientList');
+  if (!dl) return;
+  var week = weekFilter.value;
+  var seen = {};
+  allCheques.forEach(function(c) {
+    if (week && c.week !== week) return;
+    var name = String(c.client || '').trim();
+    if (!name) return;
+    var k = normClient(name);
+    if (k && !seen[k]) seen[k] = name;
+  });
+  var names = Object.keys(seen).map(function(k) { return seen[k]; }).sort();
+  dl.innerHTML = names.map(function(n) { return '<option value="' + escapeHtml(n) + '"></option>'; }).join('');
 }
 
 function getPostInitials(name) {
@@ -4533,12 +4995,54 @@ function renderPosts() {
     else { sbCount.classList.add('hidden'); }
   }
 
+  // Populate the client lens from the posts themselves, so it only offers
+  // clients that actually have inquiries.
+  refreshPostsClientOptions();
+
   // Apply filter
   var filtered = postsData.filter(function(p) {
     if (postsFilter === 'all') return !p.resolved;
     if (postsFilter === 'resolved') return p.resolved;
     return p.type === postsFilter && !p.resolved;
   });
+
+  // The client lens only makes sense where inquiries are in view. Applying it on
+  // the Broadcasts tab hid every broadcast (none of them are missing_hours) while
+  // the control responsible was itself hidden — with no way to see why.
+  var clientLensApplies = (postsFilter !== 'broadcast');
+  var clientBar = $('postsClientBar');
+  if (clientBar) clientBar.style.display = clientLensApplies ? 'flex' : 'none';
+
+  if (clientLensApplies && postsClientFilter !== 'ALL') {
+    filtered = filtered.filter(function(p) {
+      return p.type === 'missing_hours' && normClient(p.client) === postsClientFilter;
+    });
+  }
+
+  // Group-by-client: order inquiries so each client's issues sit together, busiest
+  // client first, so they can be worked as one batch. Headings are inserted in the
+  // render loop below when the client changes.
+  var groupSizes = {};
+  if (postsGroupByClient && clientLensApplies) {
+    filtered.forEach(function(p) {
+      if (p.type !== 'missing_hours') return;
+      var k = normClient(p.client) || '(no client)';
+      groupSizes[k] = (groupSizes[k] || 0) + 1;
+    });
+    filtered = filtered.slice().sort(function(a, b) {
+      var ab = a.type !== 'missing_hours', bb = b.type !== 'missing_hours';
+      if (ab !== bb) return ab ? 1 : -1;            // broadcasts last
+      if (ab && bb) return 0;
+      var ka = normClient(a.client) || '(no client)';
+      var kb = normClient(b.client) || '(no client)';
+      if (ka !== kb) {
+        var d = (groupSizes[kb] || 0) - (groupSizes[ka] || 0);
+        return d !== 0 ? d : ka.localeCompare(kb);
+      }
+      return 0;
+    });
+  }
+  var lastGroupKey = null;
 
   if (filtered.length === 0) {
     list.innerHTML = '<div class="posts-empty"><div class="posts-empty-icon">' +
@@ -4551,17 +5055,44 @@ function renderPosts() {
   var myPIN = String(pin);
 
   filtered.forEach(function(p) {
+    if (postsGroupByClient && clientLensApplies && p.type === 'missing_hours') {
+      var gk = normClient(p.client) || '(no client)';
+      if (gk !== lastGroupKey) {
+        lastGroupKey = gk;
+        var gh = document.createElement('div');
+        gh.className = 'posts-clientgroup-head';
+        gh.innerHTML = '<span>' + escapeHtml(String(p.client || '').trim() || 'No client recorded') + '</span>'
+          + '<span class="cg-count">' + (groupSizes[gk] || 0) + '</span>';
+        list.appendChild(gh);
+      }
+    }
     var card = document.createElement('div');
     card.className = 'post-card' + (p.resolved ? ' resolved-card' : '');
     card.dataset.postId = p.id;
 
     // Header
-    var html = '<div class="post-header">' +
-      '<div class="post-avatar" style="background:' + getPostAvatarColor(p.author) + '">' + getPostInitials(p.author) + '</div>' +
-      '<div class="post-meta"><div class="post-author">' + escapeHtml(p.author) + '</div>' +
-      '<div class="post-time">' + formatPostTime(p.timestamp) + '</div></div>' +
-      '<span class="post-type-tag ' + (p.type === 'missing_hours' ? 'missing-hours' : 'broadcast') + '">' +
-      (p.type === 'missing_hours' ? '⏱ Missing Hours' : '📢 Broadcast') + '</span></div>';
+    // Missing-hours inquiries lead with the CLIENT — these get worked through
+    // client by client, so the client is the subject and the recruiter who raised
+    // it is context. Broadcasts keep the author-led header, since for those the
+    // person speaking IS the point.
+    var html;
+    if (p.type === 'missing_hours') {
+      var clientName = String(p.client || '').trim() || 'No client recorded';
+      html = '<div class="post-header">' +
+        '<div class="post-avatar" style="background:' + getPostAvatarColor(clientName) + '">' + getPostInitials(clientName) + '</div>' +
+        '<div class="post-meta">' +
+          '<div class="post-client">' + escapeHtml(clientName) + '</div>' +
+          (p.employeeName ? '<div class="post-employee">' + escapeHtml(p.employeeName) + '</div>' : '') +
+          '<div class="post-raisedby">Raised by ' + escapeHtml(p.author) + ' · ' + formatPostTime(p.timestamp) + '</div>' +
+        '</div>' +
+        '<span class="post-type-tag missing-hours">⏱ Missing Hours</span></div>';
+    } else {
+      html = '<div class="post-header">' +
+        '<div class="post-avatar" style="background:' + getPostAvatarColor(p.author) + '">' + getPostInitials(p.author) + '</div>' +
+        '<div class="post-meta"><div class="post-author">' + escapeHtml(p.author) + '</div>' +
+        '<div class="post-time">' + formatPostTime(p.timestamp) + '</div></div>' +
+        '<span class="post-type-tag broadcast">📢 Broadcast</span></div>';
+    }
 
     // Resolved badge
     if (p.resolved) {
@@ -4573,12 +5104,12 @@ function renderPosts() {
     // Detail grid for missing hours
     if (p.type === 'missing_hours') {
       html += '<div class="post-detail-grid">';
-      html += '<div><div class="post-detail-label">Employee</div><div class="post-detail-value employee-name">' + escapeHtml(p.employeeName || '—') + '</div></div>';
+
       html += '<div><div class="post-detail-label">Phone</div><div class="post-detail-value">' + escapeHtml(p.phone || '—') + '</div></div>';
       html += '<div><div class="post-detail-label">Cheque #</div><div class="post-detail-value">' + escapeHtml(p.chqNo || '—') + '</div></div>';
       html += '<div><div class="post-detail-label">Emp No</div><div class="post-detail-value">' + escapeHtml(p.empNo || '—') + '</div></div>';
       html += '<div><div class="post-detail-label">JIG_ID</div><div class="post-detail-value">' + escapeHtml(p.jigId || '—') + '</div></div>';
-      html += '<div><div class="post-detail-label">Client</div><div class="post-detail-value">' + escapeHtml(p.client || '—') + '</div></div>';
+
       html += '<div><div class="post-detail-label">Pay Period</div><div class="post-detail-value">' + escapeHtml(p.week || '—') + '</div></div>';
       html += '<div><div class="post-detail-label">Hours Missing</div><div class="post-detail-value hours-value">' + escapeHtml(String(p.hours || '—')) + '</div></div>';
       html += '</div>';
@@ -4695,6 +5226,15 @@ function renderPosts() {
 })();
 
 // Filter pills
+$('postsClientFilter').addEventListener('change', function() {
+  postsClientFilter = this.value;
+  renderPosts();
+});
+$('postsGroupBy').addEventListener('change', function() {
+  postsGroupByClient = this.checked;
+  renderPosts();
+});
+
 $('postsFilters').addEventListener('click', function(e) {
   var pill = e.target.closest('.posts-filter-pill');
   if (!pill) return;
@@ -4789,6 +5329,7 @@ function openMHFromCheque(cheque) {
   $('pfMHError').classList.add('hidden');
   // Populate weeks datalist and pre-fill cheque's week
   populateMHWeekDatalist();
+  populateMHClientDatalist();
   $('pfMHWeek').value = cheque.week || '';
   // Populate offices with cheque's office pre-selected
   populatePostFormOffices('pfMHOffices', cheque.office);
@@ -4808,6 +5349,7 @@ $('btnNewMissingHours').addEventListener('click', function() {
   $('pfMHError').classList.add('hidden');
   // Populate weeks datalist
   populateMHWeekDatalist();
+  populateMHClientDatalist();
   $('pfMHWeek').value = '';
   populatePostFormOffices('pfMHOffices');
   setTimeout(function() { $('pfMHName').focus(); }, 50);
@@ -4931,6 +5473,205 @@ async function deletePostComment(postId, commentId) {
 }
 
 // =============================================
+// REPORTS (Outstanding cheques / By client)
+// =============================================
+// Visibility comes from the _Users sheet capability, surfaced on currentUser as
+// canViewReports. The button is hidden without it, but that is convenience only —
+// getOutstanding and getClientSummary both re-check server-side, because they
+// return every office's payroll regardless of the caller's own office scope.
+
+let rpTab = 'outstanding';
+let rpData = { outstanding: null, clients: null };
+let rpLoading = false;
+
+function openReports() {
+  if (!currentUser || !currentUser.canViewReports) { showToast('Reports are not enabled for your account'); return; }
+  $('reportsScreen').classList.remove('hidden');
+  if (!rpData[rpTab]) loadReport(true); else renderReport();
+}
+function closeReports() { $('reportsScreen').classList.add('hidden'); }
+
+$('reportsBtn').addEventListener('click', openReports);
+$('rpCloseBtn').addEventListener('click', closeReports);
+$('reportsScreen').querySelectorAll('.rp-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    $('reportsScreen').querySelectorAll('.rp-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    rpTab = btn.dataset.rpTab;
+    if (!rpData[rpTab]) loadReport(true); else renderReport();
+  });
+});
+$('rpRefreshBtn').addEventListener('click', () => loadReport(true));
+$('rpWeeks').addEventListener('change', () => { rpData = { outstanding: null, clients: null }; loadReport(true); });
+$('rpOffice').addEventListener('change', () => {
+  // Narrowing to one office also narrows what the server reads, so refetch.
+  rpData = { outstanding: null, clients: null };
+  loadReport(true);
+});
+$('rpSearch').addEventListener('input', renderReport);
+$('rpExportBtn').addEventListener('click', exportReport);
+
+let rpReqId = 0;
+async function loadReport(force) {
+  if (!isOnline) { $('rpBody').innerHTML = '<div class="rp-empty">You are offline — reports need a connection.</div>'; return; }
+  // Generation token rather than a drop-if-busy guard: an office change made
+  // mid-flight used to be swallowed after rpData had already been cleared, so the
+  // older un-narrowed response landed under the new selection.
+  const myReq = ++rpReqId;
+  rpLoading = true;
+  $('rpBody').innerHTML = '<div class="rp-loading">Reading the payroll sheets… this can take a few seconds.</div>';
+  const weeks = parseInt($('rpWeeks').value, 10) || 8;
+  try {
+    const action = rpTab === 'outstanding' ? 'getOutstanding' : 'getClientSummary';
+    const res = await api({ action: action, weeks: weeks, office: $('rpOffice').value || 'ALL' });
+    if (myReq !== rpReqId) return;   // superseded by a newer request
+    if (res && res.error) {
+      $('rpBody').innerHTML = '<div class="rp-empty">⚠️ ' + escapeHtml(res.error) + '</div>';
+      rpLoading = false; return;
+    }
+    rpData[rpTab] = res;
+    if (res && res.warnings && res.warnings.length) reportSheetWarnings(res.warnings);
+  } catch (e) {
+    if (myReq === rpReqId) {
+      $('rpBody').innerHTML = '<div class="rp-empty">Could not load the report — check your connection and try again.</div>';
+      rpLoading = false;
+    }
+    return;
+  }
+  rpLoading = false;
+  renderReport();
+}
+
+function money(n) { return '$' + (Number(n) || 0).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+function ageBadge(weeksOld) {
+  if (weeksOld < 0) return '<span class="rp-age warn">age unknown</span>';
+  if (weeksOld <= 1) return '<span class="rp-age fresh">' + (weeksOld === 0 ? 'this week' : '1 wk') + '</span>';
+  if (weeksOld <= 3) return '<span class="rp-age warn">' + weeksOld + ' wks</span>';
+  return '<span class="rp-age stale">' + weeksOld + ' wks</span>';
+}
+
+function rpFilterRows(rows, fields) {
+  const q = $('rpSearch').value.trim().toLowerCase();
+  const office = $('rpOffice').value;
+  return rows.filter(r => {
+    if (office !== 'ALL' && r.office !== office && !(r.offices && r.offices.indexOf(office) !== -1)) return false;
+    if (!q) return true;
+    return fields.some(f => String(r[f] || '').toLowerCase().includes(q));
+  });
+}
+
+function renderReport() {
+  const data = rpData[rpTab];
+  if (!data) return;
+  const body = $('rpBody');
+
+  // Office dropdown is populated from whatever the report returned.
+  // Office options come from the workbook's own week/office map, not from the
+  // rows returned. Deriving them from results meant that narrowing to an office
+  // with nothing outstanding emptied the dropdown, silently snapped the selection
+  // back to "All offices", and left a narrowed result on screen with no refetch.
+  const offSel = $('rpOffice');
+  const offices = new Set();
+  Object.keys(weeksData || {}).forEach(w => (weeksData[w] || []).forEach(o => offices.add(o)));
+  (rpTab === 'outstanding' ? (data.cheques || []) : (data.clients || [])).forEach(r => {
+    if (r.office) offices.add(r.office);
+    (r.offices || []).forEach(o => offices.add(o));
+  });
+  const prevOff = offSel.value;
+  offSel.innerHTML = '<option value="ALL">All offices</option>' +
+    Array.from(offices).sort().map(o => '<option value="' + escapeHtml(o) + '">' + escapeHtml(o) + '</option>').join('');
+  if (prevOff && offSel.querySelector('option[value="' + CSS.escape(prevOff) + '"]')) offSel.value = prevOff;
+
+  if (rpTab === 'outstanding') {
+    const rows = rpFilterRows(data.cheques || [], ['name', 'client', 'chqNo', 'empNo', 'jigId']);
+    const total = rows.reduce((s, r) => s + (r.netPay || 0), 0);
+    const stale = rows.filter(r => r.weeksOld >= 4 || r.weeksOld < 0);
+    body.innerHTML =
+      '<div class="rp-stats">'
+      + statTile('Outstanding cheques', rows.length)
+      + statTile('Total value', money(total))
+      + statTile('Older than 4 weeks', stale.length, stale.length > 0)
+      + statTile('Weeks scanned', (data.weeksScanned || []).length)
+      + '</div>'
+      + (rows.length === 0
+        ? '<div class="rp-empty">Nothing outstanding for this filter. 🎉</div>'
+        : '<div class="rp-table-wrap"><table class="rp-table"><thead><tr>'
+          + '<th>Age</th><th>Week</th><th>Office</th><th>Chq&nbsp;No.</th><th>Name</th><th>Client</th><th class="r">Net Pay</th><th>Note</th>'
+          + '</tr></thead><tbody>'
+          + rows.map(r =>
+              '<tr><td>' + ageBadge(r.weeksOld) + '</td>'
+              + '<td class="mono">' + escapeHtml(r.week) + '</td>'
+              + '<td>' + escapeHtml(r.office) + '</td>'
+              + '<td class="mono">' + escapeHtml(r.chqNo) + '</td>'
+              + '<td>' + escapeHtml(r.name) + '</td>'
+              + '<td>' + escapeHtml(r.client || '') + '</td>'
+              + '<td class="r mono">' + money(r.netPay) + '</td>'
+              + '<td>' + escapeHtml((r.comment || '').slice(0, 60)) + '</td></tr>').join('')
+          + '</tbody></table></div>');
+  } else {
+    const rows = rpFilterRows(data.clients || [], ['client']);
+    body.innerHTML =
+      '<div class="rp-stats">'
+      + statTile('Clients', rows.length)
+      + statTile('Outstanding value', money(rows.reduce((s, r) => s + (r.outstandingValue || 0), 0)))
+      + statTile('Open queries', rows.reduce((s, r) => s + (r.openQueries || 0), 0),
+                 rows.reduce((s, r) => s + (r.openQueries || 0), 0) > 0)
+      + statTile('Weeks scanned', (data.weeksScanned || []).length)
+      + '</div>'
+      + (rows.length === 0
+        ? '<div class="rp-empty">No client activity for this filter.</div>'
+        : '<div class="rp-table-wrap"><table class="rp-table"><thead><tr>'
+          + '<th>Client</th><th>Offices</th><th class="r">Outstanding</th><th class="r">Value</th>'
+          + '<th class="r">Collected</th><th class="r">Voided</th><th class="r">Open queries</th>'
+          + '</tr></thead><tbody>'
+          + rows.map(r =>
+              '<tr><td><strong>' + escapeHtml(r.client) + '</strong></td>'
+              + '<td>' + escapeHtml((r.offices || []).join(', ')) + '</td>'
+              + '<td class="r mono">' + r.outstandingCount + '</td>'
+              + '<td class="r mono">' + money(r.outstandingValue) + '</td>'
+              + '<td class="r mono">' + r.collectedCount + '</td>'
+              + '<td class="r mono">' + (r.voidedCount || 0) + '</td>'
+              + '<td class="r mono">' + (r.openQueries ? '<span class="rp-age stale">' + r.openQueries + '</span>' : '0') + '</td></tr>').join('')
+          + '</tbody></table></div>');
+  }
+}
+
+function statTile(label, value, warn) {
+  return '<div class="rp-stat' + (warn ? ' warn' : '') + '">'
+    + '<div class="rp-stat-label">' + escapeHtml(label) + '</div>'
+    + '<div class="rp-stat-value">' + escapeHtml(String(value)) + '</div></div>';
+}
+
+// Export exactly what is on screen, filters included — so a filtered call list
+// exports as a call list rather than the whole book.
+function exportReport() {
+  const data = rpData[rpTab];
+  if (!data) { showToast('Nothing to export yet'); return; }
+  if (typeof XLSX === 'undefined') { showToast('Spreadsheet library still loading — try again in a moment'); return; }
+
+  let rows, filename;
+  if (rpTab === 'outstanding') {
+    const list = rpFilterRows(data.cheques || [], ['name', 'client', 'chqNo', 'empNo', 'jigId']);
+    rows = [['Weeks old', 'Week', 'Office', 'Chq No.', 'Name', 'Client', 'Emp No', 'JIG ID', 'Net Pay', 'Note']]
+      .concat(list.map(r => [r.weeksOld, r.week, r.office, r.chqNo, r.name, r.client || '', r.empNo || '', r.jigId || '', r.netPay || 0, r.comment || '']));
+    filename = 'outstanding-cheques-' + new Date().toISOString().slice(0, 10) + '.xlsx';
+  } else {
+    const list = rpFilterRows(data.clients || [], ['client']);
+    rows = [['Client', 'Offices', 'Outstanding count', 'Outstanding value', 'Collected count', 'Collected value', 'Voided', 'Open queries']]
+      .concat(list.map(r => [r.client, (r.offices || []).join(', '), r.outstandingCount, r.outstandingValue, r.collectedCount, r.collectedValue, r.voidedCount || 0, r.openQueries || 0]));
+    filename = 'client-summary-' + new Date().toISOString().slice(0, 10) + '.xlsx';
+  }
+
+  try {
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), rpTab === 'outstanding' ? 'Outstanding' : 'Clients');
+    XLSX.writeFile(wb, filename);
+    showToast('✅ Exported ' + (rows.length - 1) + ' row(s)');
+  } catch (e) { showToast('Export failed: ' + e.message); }
+}
+
+// =============================================
 // TOAST
 // =============================================
 let _toastTimer = null;
@@ -4977,6 +5718,45 @@ function reportPostConfirmProblems(res, hadPhoto) {
 // =============================================
 const BASE_URL = 'https://apexpersonnel.github.io/cheque-pickup';
 
+// Render a QR to a PNG data URL. Receipts are written into a fresh document with
+// document.write(), which discards any loaded library — so the image has to be
+// baked in before the write rather than generated in the new window.
+function qrDataUrl(text) {
+  return new Promise(function(resolve) {
+    var tries = 0;
+    var holder = null;
+    (function attempt() {
+      if (typeof QRCode === 'undefined') {
+        if (++tries > 50) return resolve('');   // ~5s; receipt still renders without it
+        return setTimeout(attempt, 100);
+      }
+      try {
+        holder = document.createElement('div');
+        holder.style.cssText = 'position:absolute;left:-9999px;top:-9999px';
+        document.body.appendChild(holder);
+        new QRCode(holder, {
+          text: text, width: 320, height: 320,
+          colorDark: '#000000', colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.M
+        });
+        setTimeout(function() {
+          var url = '';
+          try {
+            var cv = holder.querySelector('canvas');
+            var im = holder.querySelector('img');
+            if (cv) url = cv.toDataURL('image/png'); else if (im) url = im.src;
+          } catch(e) { url = ''; }
+          finally { if (holder && holder.parentNode) holder.remove(); }
+          resolve(url);
+        }, 60);
+      } catch(e) {
+        if (holder && holder.parentNode) holder.remove();  // never leave it attached
+        resolve('');
+      }
+    })();
+  });
+}
+
 function showQrPanel(receiptId) {
   const panel = $('qrSuccessPanel');
   const container = $('qrCodeContainer');
@@ -4999,8 +5779,9 @@ function showQrPanel(receiptId) {
   }
   generateQr();
 
-  // Store URL for share button
+  // Store URL + id for the share and print buttons
   panel.dataset.receiptUrl = receiptUrl;
+  panel.dataset.receiptId = receiptId;
 
   panel.classList.remove('hidden');
 
@@ -5015,6 +5796,39 @@ function hideQrPanel() {
 }
 
 // Share button on QR panel
+// Print the receipt for the pickup just confirmed, with its QR on the page. Uses
+// the copy cached at confirmation time so it works even if the network drops
+// straight afterwards, and falls back to a live fetch if the cache has rolled.
+$('printReceiptQrBtn').addEventListener('click', async () => {
+  const panel = $('qrSuccessPanel');
+  const rid = panel ? panel.dataset.receiptId : '';
+  if (!rid) return;
+  const btn = $('printReceiptQrBtn');
+  // Open the window synchronously with the click. Safari drops user activation
+  // at the first await and Chrome's is short-lived, so opening it after the
+  // getReceipt round-trip meant Print simply never worked on the counter iPads.
+  // viewReceipt() already does it this way for the same reason.
+  const w = window.open('', '_blank');
+  if (!w) { showToast('Pop-up blocked — allow pop-ups for this site to print'); return; }
+  w.document.write('<!DOCTYPE html><html><head><title>Preparing receipt…</title></head><body style="font-family:Arial,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;color:#666">Preparing receipt…</body></html>');
+  btn.disabled = true;
+  try {
+    let receipt = getCachedReceipt(rid);
+    if ((!receipt || !receipt.cheques || !receipt.cheques.length) && isOnline) {
+      try { const r = await api({ action: 'getReceipt', receiptId: rid });
+            if (r && !r.error && Array.isArray(r.cheques) && r.cheques.length) receipt = r; } catch(e) {}
+    }
+    if (!receipt || !receipt.cheques || !receipt.cheques.length) {
+      w.document.body.textContent = 'Could not load that receipt to print.';
+      showToast('Could not load that receipt to print');
+      return;
+    }
+    receipt.qrImg = await qrDataUrl(panel.dataset.receiptUrl || (BASE_URL + '?receipt=' + encodeURIComponent(rid)));
+    const html = buildReceiptHtml(receipt, true);   // true = print dialog opens itself
+    w.document.open(); w.document.write(html); w.document.close();
+  } finally { btn.disabled = false; }
+});
+
 $('shareReceiptQrBtn').addEventListener('click', () => {
   const panel = $('qrSuccessPanel');
   const url = panel ? panel.dataset.receiptUrl : '';
@@ -5057,6 +5871,7 @@ const _origDoLogout = doLogout;
     // Receipt data ready — replace page with full receipt HTML
     // FIX: no auto-print — employees scanning the QR got an instant print
     // dialog on their phone, and dismissing it tried to close the tab
+    data.qrImg = await qrDataUrl(BASE_URL + '?receipt=' + encodeURIComponent(receiptId));
     const html = buildReceiptHtml(data, false);
     document.open(); document.write(html); document.close();
 
